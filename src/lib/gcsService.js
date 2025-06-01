@@ -2,9 +2,18 @@
 import { GoogleAuth } from 'google-auth-library';
 
 async function getGcsAuthToken() {
-  const auth = new GoogleAuth({
-    scopes: 'https://www.googleapis.com/auth/devstorage.read_only',
-  });
+  let auth;
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+    auth = new GoogleAuth({
+      credentials,
+      scopes: 'https://www.googleapis.com/auth/devstorage.read_only',
+    });
+  } else {
+    auth = new GoogleAuth({
+      scopes: 'https://www.googleapis.com/auth/devstorage.read_only',
+    });
+  }
   const client = await auth.getClient();
   const accessToken = (await client.getAccessToken()).token;
   if (!accessToken) {
