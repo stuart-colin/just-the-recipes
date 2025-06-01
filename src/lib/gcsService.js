@@ -27,28 +27,22 @@ function getGcsCredentials() {
 }
 
 async function getGcsAuthToken() {
-  const credentials = getGcsCredentials(); // This will be an object or undefined
-
-  const auth = new GoogleAuth({
-    // If 'credentials' is an object, it's used.
-    // If 'credentials' is undefined, GoogleAuth attempts ADC,
-    // which includes checking GOOGLE_APPLICATION_CREDENTIALS env var for a file path.
-    credentials,
-    scopes: 'https://www.googleapis.com/auth/devstorage.read_only',
-  });
-
-  try {
-    const client = await auth.getClient();
-    const accessToken = (await client.getAccessToken()).token;
-    if (!accessToken) {
-      console.error('GCS Service: Failed to obtain GCS access token after client retrieval.');
-      throw new Error('Failed to obtain GCS access token.');
-    }
-    console.log("GCS Service: Successfully obtained GCS access token.");
-    return accessToken;
-  } catch (error) {
-    console.error('GCS Service: Error in getGcsAuthToken while getting client or token:', error);
-    throw error; // Re-throw the error to be caught by the caller
+  let auth;
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+    auth = new GoogleAuth({
+      credentials,
+      scopes: 'https://www.googleapis.com/auth/devstorage.read_only',
+    });
+  } else {
+    auth = new GoogleAuth({
+      scopes: 'https://www.googleapis.com/auth/devstorage.read_only',
+    });
+  }
+  const client = await auth.getClient();
+  const accessToken = (await client.getAccessToken()).token;
+  if (!accessToken) {
+    throw new Error('Failed to obtain GCS access token.');
   }
 }
 
