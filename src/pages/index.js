@@ -70,20 +70,20 @@ const HomePage = ({ initialRecipes, fetchError }) => {
         {/* Header Section */}
         <header className="text-center">
           <h1
-            className="text-5xl mb-2"
+            className="text-5xl mb-2 font-bold"
             style={{
               color: '#49d0ae',
-              fontFamily: 'Pacifico',
+              fontFamily: "Cabin Sketch, sans serif",
             }}
           >
             <Link href="/" legacyBehavior>
               <a>
-                <em>Just the Recipes.</em>
+                Just the Recipes.
               </a>
             </Link>
           </h1>
-          <p className="text-gray-600 italic" style={{ marginLeft: '25px', marginTop: '-10px' }}> {/* Kept original margins */}
-            <em>All of the marshmallow, none of the fluff.</em>
+          <p className="text-gray-600 font-sans italic"> {/* Kept original margins */}
+            All of the marshmallow, none of the fluff.
           </p>
         </header>
 
