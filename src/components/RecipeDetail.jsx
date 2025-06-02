@@ -15,7 +15,7 @@ import { X } from 'lucide-react'; // Import X icon
 
 const RecipeDetail = ({ selectedRecipe, onClose }) => {
   if (!selectedRecipe) {
-    return <div>Please select a recipe, or the selected recipe data is incomplete.</div>;
+    return <div></div>;
   }
 
   // Destructure details according to the new flexible JSON format

@@ -14,6 +14,7 @@ export async function getServerSideProps() {
   try {
     recipes = await fetchAllRecipesFromGCS();
   } catch (e) {
+    console.log('test')
     console.error("getServerSideProps: Error during recipe fetching process:", e.message, e.stack);
     error = "Failed to load recipes. Please try again later.";
   }
@@ -60,17 +61,6 @@ const HomePage = ({ initialRecipes, fetchError }) => {
     return titleMatch || authorMatch || ingredientsMatch || categoriesMatch;
   });
 
-  if (fetchError) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{fetchError}</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <main className="container mx-auto px-4 py-8">
       {/* <div>
@@ -102,20 +92,33 @@ const HomePage = ({ initialRecipes, fetchError }) => {
           <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
         </section>
 
+        {fetchError &&
+          <div className="container mx-auto px-4 py-8">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{fetchError}</span>
+            </div>
+          </div>
+        }
+
         {/* RecipeDetail Section */}
-        <section>
-          <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
-        </section>
+        {!fetchError &&
+          <section>
+            <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
+          </section>
+        }
 
         {/* <div className="ui basic segment">{/* <Filters /> * /}</div> */} {/* Filters placeholder, can be removed or styled */}
 
         {/* RecipeList Section */}
-        <section>
-          <RecipeList
-            onRecipeSelect={onRecipeSelect}
-            recipes={filteredRecipes}
-          />
-        </section>
+        {!fetchError &&
+          <section>
+            <RecipeList
+              onRecipeSelect={onRecipeSelect}
+              recipes={filteredRecipes}
+            />
+          </section>
+        }
       </div>
     </main>
   );
