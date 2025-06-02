@@ -31,17 +31,31 @@ export async function getServerSideProps() {
 const HomePage = ({ initialRecipes, fetchError }) => {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [recipeOpenBeforeSearch, setRecipeOpenBeforeSearch] = useState(null);
 
   const onRecipeSelect = (recipe) => {
     setSelectedRecipe(recipe);
+    setSearchTerm(''); // Clear search term when a recipe is selected
+    setRecipeOpenBeforeSearch(null); // Reset the "before search" state
   };
 
   const handleSearchChange = (term) => {
     setSearchTerm(term);
+    if (term) { // If a search term is entered
+      if (selectedRecipe && !recipeOpenBeforeSearch) {
+        // If a recipe detail is open and we haven't already stored it
+        setRecipeOpenBeforeSearch(selectedRecipe);
+      }
+      setSelectedRecipe(null); // Hide current recipe detail to show list
+    } else {
+      // Search term is cleared, restore the recipe that was open before search
+      setSelectedRecipe(recipeOpenBeforeSearch);
+    }
   };
 
   const handleCloseRecipeDetail = () => {
     setSelectedRecipe(null);
+    setRecipeOpenBeforeSearch(null); // Also clear this when explicitly closing
   };
 
   const filteredRecipes = initialRecipes.filter(recipe => {
@@ -102,23 +116,23 @@ const HomePage = ({ initialRecipes, fetchError }) => {
         }
 
         {/* RecipeDetail Section */}
-        {!fetchError &&
+        {!fetchError && selectedRecipe && !searchTerm && (
           <section>
             <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
           </section>
-        }
+        )}
 
         {/* <div className="ui basic segment">{/* <Filters /> * /}</div> */} {/* Filters placeholder, can be removed or styled */}
 
         {/* RecipeList Section */}
-        {!fetchError &&
+        {!fetchError && (!selectedRecipe || searchTerm) && (
           <section>
             <RecipeList
               onRecipeSelect={onRecipeSelect}
               recipes={filteredRecipes}
             />
           </section>
-        }
+        )}
       </div>
     </main>
   );
