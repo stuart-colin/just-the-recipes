@@ -42,6 +42,7 @@ next-env.d.ts
 
 #private keys
 just-the-recipe_gcp-service-account-key.json
+gcs-base-64
 
 #recipe files
 recipes
