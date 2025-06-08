@@ -6,15 +6,17 @@ import RecipeDetail from '../components/RecipeDetail';
 import RecipeList from '../components/RecipeList';
 import Link from 'next/link';
 
-// Define a more specific Recipe type if you have one, e.g., from your GCS data structure
+// Define a more specific Recipe type
 interface Recipe {
-  id: string; // Or whatever unique identifier you have
+  id: string;
   title?: string;
   author?: string;
   ingredients?: Record<string, string[]>;
   categories?: string[];
-  // Add other recipe properties here
-  [key: string]: any; // Allow other properties
+  name?: string; // Optional: if 'name' is used as an alternative to 'title'
+  images?: { main?: string;[key: string]: string | undefined }; // Allows for a main image and other potential image keys
+  description?: string;
+  // Add other common recipe fields as needed (e.g., prepTime, cookTime, servings, instructions)
 }
 
 interface HomePageClientProps {
