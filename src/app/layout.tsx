@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Just the Recipes",
   description: "All of the Marshmallow, None of the Fluff",
+  manifest: '/manifest.json', // Link to your web app manifest
+  themeColor: '#49d0ae',   // Set the theme color for browser UI
+  icons: {
+    icon: '/icon.svg', // Main favicon (ensure favicon.ico is in /public)
+    apple: '/apple-touch-icon.png', // Apple touch icon (ensure apple-touch-icon.png is in /public)
+  },
 };
 
 export default function RootLayout({
