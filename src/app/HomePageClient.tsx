@@ -1,6 +1,6 @@
 "use client"; // Mark as a Client Component
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import SearchBar from '../components/SearchBar';
 import RecipeDetail from '../components/RecipeDetail';
 import RecipeList from '../components/RecipeList';
@@ -28,6 +28,7 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [recipeOpenBeforeSearch, setRecipeOpenBeforeSearch] = useState<Recipe | null>(null);
+  const recipeDetailWrapperRef = useRef<HTMLDivElement>(null); // Ref for the new wrapper div
 
   const onRecipeSelect = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -52,6 +53,14 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
     setRecipeOpenBeforeSearch(null);
   };
 
+  useEffect(() => {
+    // Scroll to RecipeDetail when a new recipe is selected and search is not active
+    if (selectedRecipe && !searchTerm && recipeDetailWrapperRef.current) {
+      recipeDetailWrapperRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedRecipe, searchTerm]); // Rerun effect when selectedRecipe or searchTerm changes
+
+
   const filteredRecipes = initialRecipes.filter(recipe => {
     if (!recipe) return false;
     const term = searchTerm.toLowerCase();
@@ -72,7 +81,7 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
             className="text-5xl mb-2 font-bold"
             style={{
               color: '#49d0ae',
-              fontFamily: "var(--font-cabin-sketch), cursive", // Use the CSS variable
+              fontFamily: "var(--font-cabin-sketch), sans-serif",
             }}
           >
             <Link href="/">Just the Recipes.</Link>
@@ -93,7 +102,14 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
           </div>
         )}
 
-        {!fetchError && selectedRecipe && !searchTerm && <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />}
+        {!fetchError && selectedRecipe && !searchTerm && (
+          <div ref={recipeDetailWrapperRef}> {/* Attach ref to this new wrapper div */}
+            {/* Add top padding to the section to create the gap. Adjust pt-5 (1.25rem) as needed. */}
+            <section className="pt-5"> {/* Example: Tailwind's pt-5 for padding-top */}
+              <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
+            </section>
+          </div>
+        )}
         {!fetchError && (!selectedRecipe || searchTerm) && <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />}
       </div>
     </main>
