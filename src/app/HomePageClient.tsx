@@ -75,7 +75,7 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
               fontFamily: "var(--font-cabin-sketch), cursive", // Use the CSS variable
             }}
           >
-            <Link href="/" legacyBehavior><a>Just the Recipes.</a></Link>
+            <Link href="/">Just the Recipes.</Link>
           </h1>
           <p className="text-gray-600 font-sans italic">
             All of the marshmallow, none of the fluff.

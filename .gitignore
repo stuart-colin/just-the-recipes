@@ -44,8 +44,5 @@ next-env.d.ts
 just-the-recipe_gcp-service-account-key.json
 gcs-base-64
 
-#recipe files
+#recipes and other offline files
 recipes
-
-#design working files
-/images

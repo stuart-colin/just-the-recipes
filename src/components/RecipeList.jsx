@@ -13,7 +13,7 @@ const RecipeList = ({ recipes: recipeItems, onRecipeSelect }) => { // Destructur
   const renderedRecipes = recipeItems.map((recipe) => {
     return (
       <Card
-        key={recipe.id}
+        key={recipe.title}
         className="cursor-pointer hover:shadow-lg transition-shadow gap-0 p-0"
         onClick={() => onRecipeSelect(recipe)}
       >
@@ -35,7 +35,7 @@ const RecipeList = ({ recipes: recipeItems, onRecipeSelect }) => { // Destructur
               </CardDescription>
             )}
             {recipe?.rating && (recipe.rating.average > 0 || recipe.rating.votes > 0) && ( // Show rating if available and meaningful
-              <StarRating average={recipe.rating.average} votes={recipe.rating.votes} />
+              (<StarRating average={recipe.rating.average} votes={recipe.rating.votes} />)
             )}
           </div>
           {recipe?.description && (

@@ -250,10 +250,12 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
         {source ? (
           <>
             This recipe was originally found{' '}
-            <Link href={source} legacyBehavior>
-              <a className="text-primary hover:underline ml-1" target="_blank" rel="noopener noreferrer">
-                here
-              </a>
+            <Link
+              href={source}
+              className="text-primary hover:underline ml-1"
+              target="_blank"
+              rel="noopener noreferrer">
+              here
             </Link>
             .
           </>
