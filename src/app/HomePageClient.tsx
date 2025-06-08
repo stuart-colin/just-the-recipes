@@ -72,7 +72,7 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
             className="text-5xl mb-2 font-bold"
             style={{
               color: '#49d0ae',
-              fontFamily: "'Cabin Sketch', cursive", // Ensure Cabin Sketch is globally available via globals.css
+              fontFamily: "var(--font-cabin-sketch), cursive", // Use the CSS variable
             }}
           >
             <Link href="/" legacyBehavior><a>Just the Recipes.</a></Link>
