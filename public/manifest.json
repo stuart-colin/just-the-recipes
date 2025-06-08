@@ -1,0 +1,17 @@
+{
+  "name": "Just the Recipes",
+  "short_name": "Recipes",
+  "description": "All of the Marshmallow, None of the Fluff.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#49d0ae"
+}

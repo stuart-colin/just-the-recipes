@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   themeColor: '#49d0ae',
   icons: {
-    icon: '/icon.svg', // Main favicon (ensure favicon.ico is in /public)
-    // apple: '/apple-touch-icon.png', // Apple touch icon (ensure apple-touch-icon.png is in /public)
+    icon: '/favicon.svg', // Main favicon (ensure favicon.ico is in /public)
+    apple: '/favicon.svg', // Apple touch icon (ensure apple-touch-icon.png is in /public)
   },
 };
 
