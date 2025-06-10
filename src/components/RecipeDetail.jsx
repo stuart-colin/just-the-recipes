@@ -176,6 +176,14 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
   const renderedInstructions = renderGroupedList(instructions, 'ol', 'instruction');
   const mainImage = images?.main;
 
+  // Get secondary images from the 'gallery' array
+  const secondaryImages = (images?.gallery && Array.isArray(images.gallery))
+    ? images.gallery
+      .filter(url => typeof url === 'string' && url.trim() !== '') // Ensure each item is a non-empty string URL
+      .map((url, index) => ({ key: `gallery-${index}`, url })) // Map to an array of objects { key: 'gallery-0', url: 'path/to/img.jpg' }
+    : [];
+
+
   return (
     <Card className="w-full relative"> {/* Added relative positioning for the close button */}
       <CardHeader>
@@ -215,7 +223,7 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
         />
 
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-1">
+          <div className="md:col-span-1 flex flex-col gap-4"> {/* Add flex and gap for stacking images */}
             {mainImage && (
               <img
                 alt={title || selectedRecipe.name || 'Recipe Image'}
@@ -223,6 +231,16 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
                 className="w-full h-auto rounded-lg object-cover aspect-square"
               />
             )}
+            {/* Render secondary images */}
+            {secondaryImages.map(({ key, url }) => (
+              <img
+                key={key} // Use the key from the object (e.g., "step1") as the key prop
+                alt={`${title || selectedRecipe.name || 'Recipe'} - ${key} image`} // More descriptive alt text
+                src={url}
+                className="w-full h-auto rounded-lg object-cover" // Styling for secondary images
+              />
+            ))}
+
           </div>
           <div className="md:col-span-2 grid gap-6">
             <div>

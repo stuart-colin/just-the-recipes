@@ -5,6 +5,12 @@ import SearchBar from '../components/SearchBar';
 import RecipeDetail from '../components/RecipeDetail';
 import RecipeList from '../components/RecipeList';
 import Link from 'next/link';
+import { Button } from "@/components/ui/button"; // Import Button
+import { ClipboardList } from 'lucide-react'; // Import ClipboardList icon
+import RecipesToMakeList from '../components/RecipesToMakeList';
+import AddRecipeToMakeForm from '../components/AddRecipeToMakeForm';
+import { getRecipesToMake, addRecipeToMake, removeRecipeFromToMake } from '../lib/toMakeService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Import Dialog components
 
 // Define a more specific Recipe type
 interface Recipe {
@@ -16,7 +22,15 @@ interface Recipe {
   name?: string; // Optional: if 'name' is used as an alternative to 'title'
   images?: { main?: string;[key: string]: string | undefined }; // Allows for a main image and other potential image keys
   description?: string;
+  source?: string; // For external recipes in "To Make" list
   // Add other common recipe fields as needed (e.g., prepTime, cookTime, servings, instructions)
+}
+
+// Define a specific type for items in the "Recipes to Make" list
+interface ToMakeRecipeItem {
+  title?: string;
+  name?: string; // Optional: if 'name' is used as an alternative to 'title'
+  source?: string; // Source URL is crucial for these items
 }
 
 interface HomePageClientProps {
@@ -28,6 +42,8 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [recipeOpenBeforeSearch, setRecipeOpenBeforeSearch] = useState<Recipe | null>(null);
+  const [showToMakeModal, setShowToMakeModal] = useState(false); // State for modal visibility
+  const [recipesToMake, setRecipesToMake] = useState<ToMakeRecipeItem[]>([]);
   const recipeDetailWrapperRef = useRef<HTMLDivElement>(null); // Ref for the new wrapper div
 
   const onRecipeSelect = (recipe: Recipe) => {
@@ -53,12 +69,40 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
     setRecipeOpenBeforeSearch(null);
   };
 
+  // Load "to make" list from localStorage on component mount
+  useEffect(() => {
+    // getRecipesToMake() returns items matching ToMakeRecipeItem structure
+    setRecipesToMake(getRecipesToMake() as ToMakeRecipeItem[]);
+  }, []);
+
   useEffect(() => {
     // Scroll to RecipeDetail when a new recipe is selected and search is not active
     if (selectedRecipe && !searchTerm && recipeDetailWrapperRef.current) {
       recipeDetailWrapperRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [selectedRecipe, searchTerm]); // Rerun effect when selectedRecipe or searchTerm changes
+
+  const handleToggleToMakeRecipe = (recipeInfo: ToMakeRecipeItem) => {
+    const recipeTitle = recipeInfo.title || recipeInfo.name;
+    if (!recipeTitle || !recipeInfo.source) {
+      console.warn("Cannot toggle recipe without title/name and source from 'To Make' list.", recipeInfo);
+      return false; // Indicate failure
+    }
+    const currentList: ToMakeRecipeItem[] = getRecipesToMake(); // Explicitly type currentList or type 'r' below
+    let success;
+    if (currentList.some((r: ToMakeRecipeItem) => (r.title || r.name) === recipeTitle && r.source === recipeInfo.source)) {
+      removeRecipeFromToMake(recipeTitle, recipeInfo.source!); // Use non-null assertion
+      console.log(`Removed "${recipeTitle}" from 'To Make' list.`);
+      success = true; // Assuming remove always succeeds if item was there
+    } else {
+      // Pass only necessary info, ensuring 'name' is also considered if 'title' is absent
+      success = addRecipeToMake({ title: recipeTitle, source: recipeInfo.source!, name: recipeInfo.name });
+      console.log(`Attempted to add "${recipeTitle}" to 'To Make' list. Success: ${success}`);
+    }
+    setRecipesToMake(getRecipesToMake() as ToMakeRecipeItem[]); // Update state to re-render list from storage
+    // Optionally close modal on successful add: if (success && !currentList.some(...)) setShowToMakeModal(false);
+    return success;
+  };
 
 
   const filteredRecipes = initialRecipes.filter(recipe => {
@@ -91,9 +135,27 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
           </p>
         </header>
 
-        <section className="w-full max-w-xl mx-auto">
-          <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
-        </section>
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
+          <section className="w-full md:flex-grow"> {/* Search bar takes available space */}
+            <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
+          </section>
+          {/* Trigger button for the "To Make" modal */}
+          <Dialog open={showToMakeModal} onOpenChange={setShowToMakeModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="Open 'Recipes to Make' list">
+                <ClipboardList className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto"> {/* Adjust max-width and add scrolling */}
+              <DialogHeader>
+                <DialogTitle>Recipes to Make</DialogTitle>
+              </DialogHeader>
+              {/* Render the form and list inside the modal */}
+              <AddRecipeToMakeForm onAddRecipe={handleToggleToMakeRecipe} />
+              <RecipesToMakeList recipesToMake={recipesToMake} onRemoveRecipe={handleToggleToMakeRecipe} />
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {fetchError && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -110,6 +172,8 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
             </section>
           </div>
         )}
+        {/* RecipeList is only shown when no recipe is selected OR when searching */}
+        {/* The To Make list and form are now in the modal */}
         {!fetchError && (!selectedRecipe || searchTerm) && <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />}
       </div>
     </main>
