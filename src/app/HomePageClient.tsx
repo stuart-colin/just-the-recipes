@@ -139,7 +139,7 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
       });
       // Real-time listener (onSnapshot) will update the UI.
       // Optionally, close the modal or provide other success feedback here.
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding recipe to Firestore: ", error);
       setIsProcessingToMake(false);
       throw error; // Re-throw to be caught by AddRecipeToMakeForm for UI error display
@@ -213,7 +213,7 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
                   isProcessing={isProcessingToMake}
                 />
                 {isLoadingToMake && <p className="text-center py-4">Loading list...</p>}
-                {!isLoadingToMake && recipesToMake.length === 0 && <p className="text-center text-muted-foreground py-4">Your "Recipes to Make" list is empty.</p>}
+                {!isLoadingToMake && recipesToMake.length === 0 && <p className="text-center text-muted-foreground py-4">{'Your "Recipes to Make" list is empty.'}</p>}
                 {!isLoadingToMake && recipesToMake.length > 0 && <RecipesToMakeList recipesToMake={recipesToMake} onRemoveRecipe={handleRemoveRecipeFromFirebase} />}
               </DialogContent>
             </Dialog>

@@ -35,8 +35,8 @@ if (process.env.NODE_ENV === 'development') {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);
 const db = getFirestore(app);
 
 // Export the db instance for use in other parts of your app
-export { db };
+export { db, app, analytics };
