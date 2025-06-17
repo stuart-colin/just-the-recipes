@@ -46,3 +46,6 @@ gcs-base-64
 
 #recipes and other offline files
 recipes
+
+#firebase
+src/lib/firebase.js

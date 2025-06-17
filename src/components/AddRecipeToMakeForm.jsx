@@ -10,13 +10,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
-const AddRecipeToMakeForm = ({ onAddRecipe }) => {
+const AddRecipeToMakeForm = ({ onAddRecipe, isProcessing }) => {
   const [recipeName, setRecipeName] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isProcessing) return; // Prevent multiple submissions
+
     setError(''); // Clear previous errors
 
     if (!recipeName.trim() || !sourceUrl.trim()) {
@@ -32,15 +34,16 @@ const AddRecipeToMakeForm = ({ onAddRecipe }) => {
       return;
     }
 
-    // Call the handler passed from the parent
-    const success = onAddRecipe({ title: recipeName.trim(), source: sourceUrl.trim() });
-
-    if (success) {
+    try {
+      // onAddRecipe is now an async function provided by the parent,
+      // which handles the actual cloud interaction.
+      await onAddRecipe({ title: recipeName.trim(), source: sourceUrl.trim() });
       // Clear form on success
       setRecipeName('');
       setSourceUrl('');
-    } else {
-      setError('Recipe with this name and source already exists in your list.');
+    } catch (addError) {
+      console.error("Error adding recipe:", addError);
+      setError(addError.message || 'Failed to add recipe. Please try again.');
     }
   };
 
@@ -54,14 +57,14 @@ const AddRecipeToMakeForm = ({ onAddRecipe }) => {
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="recipeName">Recipe Name</Label>
-            <Input id="recipeName" type="text" value={recipeName} onChange={(e) => setRecipeName(e.target.value)} required />
+            <Input id="recipeName" type="text" value={recipeName} onChange={(e) => setRecipeName(e.target.value)} required disabled={isProcessing} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="sourceUrl">Source URL</Label>
-            <Input id="sourceUrl" type="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} required />
+            <Input id="sourceUrl" type="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} required disabled={isProcessing} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full">Add to List</Button>
+          <Button type="submit" className="w-full" disabled={isProcessing}>{isProcessing ? 'Adding...' : 'Add to List'}</Button>
         </form>
       </CardContent>
     </Card>

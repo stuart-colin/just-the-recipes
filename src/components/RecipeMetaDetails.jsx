@@ -23,6 +23,7 @@ const RecipeMetaDetails = ({
         <div className="text-sm flex items-center gap-2">
           <span className="font-semibold text-muted-foreground">Servings: </span>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="h-6 w-6"
@@ -34,6 +35,7 @@ const RecipeMetaDetails = ({
           </Button>
           <span className="min-w-[2ch] text-center font-medium">{adjustedServings}</span>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="h-6 w-6"
@@ -44,6 +46,7 @@ const RecipeMetaDetails = ({
           </Button>
           {adjustedServings !== originalServings && (
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               className="h-6 w-6"

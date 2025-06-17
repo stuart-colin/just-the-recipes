@@ -6,10 +6,24 @@ import RecipeDetail from '../components/RecipeDetail';
 import RecipeList from '../components/RecipeList';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button"; // Import Button
-import { ClipboardList } from 'lucide-react'; // Import ClipboardList icon
+import { ClipboardList, Plus } from 'lucide-react'; // Import ClipboardList and Plus icons
 import RecipesToMakeList from '../components/RecipesToMakeList';
 import AddRecipeToMakeForm from '../components/AddRecipeToMakeForm';
-import { getRecipesToMake, addRecipeToMake, removeRecipeFromToMake } from '../lib/toMakeService';
+// import { getRecipesToMake, addRecipeToMake, removeRecipeFromToMake } from '../lib/toMakeService'; // Will be replaced by Firebase logic
+import { db } from '@/lib/firebase'; // Import Firebase db instance
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+  Timestamp // Import Timestamp for type checking
+} from 'firebase/firestore';
+import AddRecipeDialogContent from '../components/AddRecipeDialogContent'; // Import the new dialog content
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Import Dialog components
 
 // Define a more specific Recipe type
@@ -28,9 +42,11 @@ interface Recipe {
 
 // Define a specific type for items in the "Recipes to Make" list
 interface ToMakeRecipeItem {
+  id?: string; // Firestore document ID
   title?: string;
   name?: string; // Optional: if 'name' is used as an alternative to 'title'
   source?: string; // Source URL is crucial for these items
+  addedAt?: Timestamp | Date; // Firestore serverTimestamp
 }
 
 interface HomePageClientProps {
@@ -38,12 +54,17 @@ interface HomePageClientProps {
   fetchError: string | null;
 }
 
+const RECIPES_TO_MAKE_COLLECTION = 'recipesToMakeGlobal'; // Firestore collection name
+
 const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchError }) => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [recipeOpenBeforeSearch, setRecipeOpenBeforeSearch] = useState<Recipe | null>(null);
+  const [showAddRecipeModal, setShowAddRecipeModal] = useState(false); // State for Add Recipe modal
   const [showToMakeModal, setShowToMakeModal] = useState(false); // State for modal visibility
   const [recipesToMake, setRecipesToMake] = useState<ToMakeRecipeItem[]>([]);
+  const [isLoadingToMake, setIsLoadingToMake] = useState(true);
+  const [isProcessingToMake, setIsProcessingToMake] = useState(false);
   const recipeDetailWrapperRef = useRef<HTMLDivElement>(null); // Ref for the new wrapper div
 
   const onRecipeSelect = (recipe: Recipe) => {
@@ -69,10 +90,26 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
     setRecipeOpenBeforeSearch(null);
   };
 
-  // Load "to make" list from localStorage on component mount
+  // Load "to make" list from Firebase on component mount and listen for real-time updates
   useEffect(() => {
-    // getRecipesToMake() returns items matching ToMakeRecipeItem structure
-    setRecipesToMake(getRecipesToMake() as ToMakeRecipeItem[]);
+    setIsLoadingToMake(true);
+    const q = query(collection(db, RECIPES_TO_MAKE_COLLECTION)); // Add orderBy('addedAt', 'desc') if you want
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const items: ToMakeRecipeItem[] = [];
+      querySnapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() } as ToMakeRecipeItem);
+      });
+      setRecipesToMake(items);
+      setIsLoadingToMake(false);
+    }, (error) => {
+      console.error("Error fetching 'recipes to make' from Firestore: ", error);
+      setIsLoadingToMake(false);
+      // Optionally set an error state to display to the user
+    });
+
+    // Cleanup listener on component unmount
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -82,28 +119,48 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
     }
   }, [selectedRecipe, searchTerm]); // Rerun effect when selectedRecipe or searchTerm changes
 
-  const handleToggleToMakeRecipe = (recipeInfo: ToMakeRecipeItem) => {
-    const recipeTitle = recipeInfo.title || recipeInfo.name;
-    if (!recipeTitle || !recipeInfo.source) {
-      console.warn("Cannot toggle recipe without title/name and source from 'To Make' list.", recipeInfo);
-      return false; // Indicate failure
+  const handleAddRecipeToFirebase = async (recipeData: { title: string, source: string }) => {
+    setIsProcessingToMake(true);
+    try {
+      // Duplicate check against Firestore
+      const q = query(
+        collection(db, RECIPES_TO_MAKE_COLLECTION),
+        where("title", "==", recipeData.title),
+        where("source", "==", recipeData.source)
+      );
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        throw new Error('This recipe is already in your "To Make" list.');
+      }
+
+      await addDoc(collection(db, RECIPES_TO_MAKE_COLLECTION), {
+        ...recipeData,
+        addedAt: serverTimestamp()
+      });
+      // Real-time listener (onSnapshot) will update the UI.
+      // Optionally, close the modal or provide other success feedback here.
+    } catch (error: any) {
+      console.error("Error adding recipe to Firestore: ", error);
+      setIsProcessingToMake(false);
+      throw error; // Re-throw to be caught by AddRecipeToMakeForm for UI error display
     }
-    const currentList: ToMakeRecipeItem[] = getRecipesToMake(); // Explicitly type currentList or type 'r' below
-    let success;
-    if (currentList.some((r: ToMakeRecipeItem) => (r.title || r.name) === recipeTitle && r.source === recipeInfo.source)) {
-      removeRecipeFromToMake(recipeTitle, recipeInfo.source!); // Use non-null assertion
-      console.log(`Removed "${recipeTitle}" from 'To Make' list.`);
-      success = true; // Assuming remove always succeeds if item was there
-    } else {
-      // Pass only necessary info, ensuring 'name' is also considered if 'title' is absent
-      success = addRecipeToMake({ title: recipeTitle, source: recipeInfo.source!, name: recipeInfo.name });
-      console.log(`Attempted to add "${recipeTitle}" to 'To Make' list. Success: ${success}`);
-    }
-    setRecipesToMake(getRecipesToMake() as ToMakeRecipeItem[]); // Update state to re-render list from storage
-    // Optionally close modal on successful add: if (success && !currentList.some(...)) setShowToMakeModal(false);
-    return success;
+    setIsProcessingToMake(false);
   };
 
+  const handleRemoveRecipeFromFirebase = async (recipeId: string) => {
+    if (!recipeId) {
+      console.error("Cannot remove recipe: ID is missing.");
+      return;
+    }
+    // Consider adding a processing state specific to removal if needed for individual items
+    try {
+      await deleteDoc(doc(db, RECIPES_TO_MAKE_COLLECTION, recipeId));
+      // Real-time listener (onSnapshot) will update the UI.
+    } catch (error) {
+      console.error("Error removing recipe from Firestore: ", error);
+      // Optionally set an error state to display to the user
+    }
+  };
 
   const filteredRecipes = initialRecipes.filter(recipe => {
     if (!recipe) return false;
@@ -139,22 +196,43 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
           <section className="w-full md:flex-grow"> {/* Search bar takes available space */}
             <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
           </section>
-          {/* Trigger button for the "To Make" modal */}
-          <Dialog open={showToMakeModal} onOpenChange={setShowToMakeModal}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Open 'Recipes to Make' list">
-                <ClipboardList className="h-5 w-5" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto"> {/* Adjust max-width and add scrolling */}
-              <DialogHeader>
-                <DialogTitle>Recipes to Make</DialogTitle>
-              </DialogHeader>
-              {/* Render the form and list inside the modal */}
-              <AddRecipeToMakeForm onAddRecipe={handleToggleToMakeRecipe} />
-              <RecipesToMakeList recipesToMake={recipesToMake} onRemoveRecipe={handleToggleToMakeRecipe} />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2"> {/* Group for action buttons */}
+            {/* Trigger button for the "To Make" modal */}
+            <Dialog open={showToMakeModal} onOpenChange={setShowToMakeModal}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Open 'Recipes to Make' list">
+                  <ClipboardList className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Recipes to Make</DialogTitle>
+                </DialogHeader>
+                <AddRecipeToMakeForm
+                  onAddRecipe={handleAddRecipeToFirebase}
+                  isProcessing={isProcessingToMake}
+                />
+                {isLoadingToMake && <p className="text-center py-4">Loading list...</p>}
+                {!isLoadingToMake && recipesToMake.length === 0 && <p className="text-center text-muted-foreground py-4">Your "Recipes to Make" list is empty.</p>}
+                {!isLoadingToMake && recipesToMake.length > 0 && <RecipesToMakeList recipesToMake={recipesToMake} onRemoveRecipe={handleRemoveRecipeFromFirebase} />}
+              </DialogContent>
+            </Dialog>
+
+            {/* Trigger button for the "Add Recipe" modal */}
+            <Dialog open={showAddRecipeModal} onOpenChange={setShowAddRecipeModal}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Add new recipe">
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg md:max-w-xl lg:max-w-7xl max-h-[90vh] overflow-y-auto"> {/* Made wider */}
+                <DialogHeader>
+                  <DialogTitle>Add New Recipe</DialogTitle>
+                </DialogHeader>
+                <AddRecipeDialogContent onClose={() => setShowAddRecipeModal(false)} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {fetchError && (
