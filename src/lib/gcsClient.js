@@ -10,10 +10,17 @@ if (GCS_KEY_BASE64) {
   // console.log("[GCS Client Init] Using GCS_KEY_BASE64 for authentication."); // Removed for production
   try {
     const credentialsJson = Buffer.from(GCS_KEY_BASE64, 'base64').toString('utf-8');
-    gcsCredentials = JSON.parse(credentialsJson);
+    const parsedCreds = JSON.parse(credentialsJson);
+    // Basic check for essential fields in a service account key
+    if (parsedCreds && parsedCreds.project_id && parsedCreds.client_email && parsedCreds.private_key) {
+      gcsCredentials = parsedCreds;
+    } else {
+      console.error("[GCS Client Init] Parsed GCS_KEY_BASE64 is missing essential fields (project_id, client_email, private_key) or is invalid.");
+      gcsCredentials = undefined; // Explicitly set to undefined to ensure ADC fallback
+    }
   } catch (error) {
-    console.error("[GCS Client Init] Failed to parse GCS_KEY_BASE64:", error);
-    // Proceed without gcsCredentials, GoogleAuth will attempt ADC or fail
+    console.error("[GCS Client Init] Failed to parse GCS_KEY_BASE64. Will attempt Application Default Credentials. Error:", error.message);
+    gcsCredentials = undefined; // Ensure fallback to ADC
   }
 } else {
   // console.log("[GCS Client Init] GCS_KEY_BASE64 not set. Attempting Application Default Credentials (ADC)."); // Removed for production
