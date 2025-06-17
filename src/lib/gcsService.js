@@ -33,8 +33,8 @@ async function fetchRecipeContent(bucketName, fileName) {
   try {
     const [content] = await file.download();
     return JSON.parse(content.toString());
-  } catch (error) {
-    console.warn(`GCS Service: Failed to fetch recipe content for ${fileName}: ${recipeResponse.status} ${await recipeResponse.text()}`);
+  } catch (fetchError) { // Renamed to fetchError to avoid conflict if 'error' is used elsewhere, or keep as 'error'
+    console.warn(`GCS Service: Failed to fetch recipe content for ${fileName}:`, fetchError); // Use the caught error variable
     return null;
   }
 }
