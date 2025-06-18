@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, XCircle } from 'lucide-react';
-import { useDynamicList } from '@/lib/useDynamicList'; // Assuming the hook is in lib
+import { useDynamicList } from '@/hooks/useDynamicList'; // Assuming the hook is in lib
 import InlineEditable from './InlineEditable'; // Import the new component
 
 const initialRecipeState = {

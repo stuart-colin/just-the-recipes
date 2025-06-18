@@ -1,6 +1,6 @@
 // d:\Code Projects\just-the-recipes\src\lib\firebaseRecipeService.js
 import { db } from './firebase'; // Your existing Firebase client-side initialization
-import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 const RECIPES_COLLECTION = 'recipes';
 
@@ -51,5 +51,47 @@ export async function addRecipeToFirestore(recipeData) {
   } catch (error) {
     console.error("Firestore Service: Error adding recipe:", error);
     throw new Error(`Failed to add recipe to Firestore: ${error.message}`);
+  }
+}
+
+/**
+ * Listens for real-time updates to all recipes in the Firestore 'recipes' collection.
+ * By default, orders them alphabetically by title.
+ * @param {function(Array<Object>|null, Error|null): void} callback - A callback function that will be invoked
+ *   with the array of recipe objects (or null on error) and an error object (or null on success).
+ * @returns {() => void} An unsubscribe function to detach the listener.
+ */
+export function listenToAllRecipesFromFirestore(callback) {
+  try {
+    // console.log("Firestore Service: Setting up listener for all recipes..."); // For debugging
+    const recipesCollectionRef = collection(db, RECIPES_COLLECTION);
+
+    // Order recipes by title, alphabetically (ascending by default).
+    // Ensure your recipe documents have a 'title' field.
+    // Firestore may require an index on 'title' for this query.
+    const q = query(recipesCollectionRef, orderBy("title"));
+    // console.log("[firebaseRecipeService] Querying recipes ordered by title:", q); // Debug log removed
+
+    const unsubscribe = onSnapshot(q,
+      (querySnapshot) => {
+        // console.log("[firebaseRecipeService] onSnapshot SUCCESS callback fired. Snapshot size:", querySnapshot.size); // Debug log removed
+        const recipes = [];
+        querySnapshot.forEach((doc) => {
+          recipes.push({ id: doc.id, ...doc.data() });
+        });
+        // console.log(`[firebaseRecipeService] Listener received ${recipes.length} recipes:`, recipes); // Debug log removed
+        callback(recipes, null);
+      }, (error) => {
+        console.error("[firebaseRecipeService] onSnapshot ERROR callback fired:", error); // Keep this for actual error reporting
+        callback(null, error);
+      });
+
+    return unsubscribe;
+  } catch (error) {
+    // This catch is for synchronous errors during setup, not for listener errors.
+    console.error("Firestore Service: Failed to set up recipes listener:", error);
+    // Propagate the error so the caller knows setup failed.
+    // The listener itself will call the callback with an error if it fails later.
+    throw new Error(`Failed to set up recipes listener: ${error.message}`);
   }
 }

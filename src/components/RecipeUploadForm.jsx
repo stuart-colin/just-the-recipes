@@ -66,7 +66,7 @@ const RecipeUploadForm = ({ onSubmit }) => {
           setPreviewData(null); // Clear preview on successful submission
         }
       } catch (parseError) {
-        console.error("Error parsing JSON during submit:", parseError);
+        // console.error("Error parsing JSON during submit:", parseError); // Debug log removed
         setError('Invalid JSON file. Please check the file content and format.');
       }
     };
@@ -87,7 +87,7 @@ const RecipeUploadForm = ({ onSubmit }) => {
             setError('The JSON file does not seem to be a valid recipe format (e.g., missing title).');
           }
         } catch (parseError) {
-          console.error("Error parsing JSON for preview:", parseError);
+          // console.error("Error parsing JSON for preview:", parseError); // Debug log removed
           setPreviewData(null);
           setError('Invalid JSON file. Please check the file content and format.');
         }

@@ -1,39 +1,23 @@
-import HomePageClient from './HomePageClient'; // The Client Component we just created
-import { fetchAllRecipesFromFirestore } from '../lib/firebaseRecipeService'; // Import new service
+// Remove force-dynamic as recipes will be fetched client-side
+// export const dynamic = 'force-dynamic';
 
-// Define a more specific Recipe type, consistent with HomePageClient.tsx
-interface Recipe {
-  id: string;
-  title?: string;
-  author?: string;
-  ingredients?: Record<string, string[]>;
-  categories?: string[];
-  name?: string;
-  images?: { main?: string;[key: string]: string | undefined };
-  description?: string;
-  // Add other common recipe fields as needed
-}
+import HomePageClient from './HomePageClient'; // The Client Component we just created
+// Main recipes will be fetched by HomePageClient
+// import { fetchAllRecipesFromFirestore } from '../lib/firebaseRecipeService';
+// Recipe type would be imported from a shared types file
+// import { Recipe } from '@/types';
 
 export default async function Page() {
-  let recipes: Recipe[] = [];
-  let error: string | null = null;
+  // The main recipes list will now be fetched and managed by HomePageClient.
+  // You might still fetch other initial data here if needed, e.g., for "Recipes to Make"
+  // or other non-recipe related content. For this example, we assume only recipes were fetched here.
 
-  try {
-    // Fetching data directly in the Server Component
-    const fetchedRecipes = await fetchAllRecipesFromFirestore(); // Use Firestore fetching
-    // Ensure recipe is not null and is an object before treating it as Recipe
-    recipes = fetchedRecipes.filter((recipe: unknown): recipe is Recipe => recipe != null && typeof recipe === 'object');
-  } catch (e: unknown) {
-    error = "Failed to load recipes. Please try again later.";
-    if (e instanceof Error) {
-      console.error("App Router Page: Error during recipe fetching process:", e.message, e.stack);
-    } else {
-      console.error("App Router Page: An unknown error occurred during recipe fetching:", e);
-    }
-    // Consider using Next.js error handling (e.g., error.tsx or notFound()) for more robust error UI
-  }
+  // If you still fetch `recipesToMake` here, that logic would remain.
+  // For example:
+  // const initialRecipesToMake = await getRecipesToMakeFromFirestore();
+  // const recipesToMakeError = null; // or handle errors from getRecipesToMakeFromFirestore
 
   return (
-    <HomePageClient initialRecipes={recipes} fetchError={error} />
+    <HomePageClient /* Pass any other necessary initial props, but not initialRecipes or fetchError for main list */ />
   );
 }

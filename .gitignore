@@ -41,9 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 #private keys
-just-the-recipe_gcp-service-account-key.json
-firebase-admin-sdk-key.json
-gcs-base-64
 
 #recipes and other offline files
 recipes

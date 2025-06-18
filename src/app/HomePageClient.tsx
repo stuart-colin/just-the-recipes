@@ -1,69 +1,43 @@
 "use client"; // Mark as a Client Component
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import SearchBar from '../components/SearchBar';
 import RecipeDetail from '../components/RecipeDetail';
 import RecipeList from '../components/RecipeList';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button"; // Import Button
 import { ClipboardList, Plus } from 'lucide-react'; // Import ClipboardList and Plus icons
-import RecipesToMakeList from '../components/RecipesToMakeList';
 import AddRecipeToMakeForm from '../components/AddRecipeToMakeForm';
-// import { getRecipesToMake, addRecipeToMake, removeRecipeFromToMake } from '../lib/toMakeService'; // Will be replaced by Firebase logic
 import { db } from '@/lib/firebase'; // Import Firebase db instance
 import {
   collection,
   addDoc,
   deleteDoc,
   doc,
-  onSnapshot,
   query,
   where,
   getDocs,
   serverTimestamp,
-  Timestamp // Import Timestamp for type checking
 } from 'firebase/firestore';
 import AddRecipeDialogContent from '../components/AddRecipeDialogContent'; // Import the new dialog content
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Import Dialog components
 
-// Define a more specific Recipe type
-interface Recipe {
-  id: string;
-  title?: string;
-  author?: string;
-  ingredients?: Record<string, string[]>;
-  categories?: string[];
-  name?: string; // Optional: if 'name' is used as an alternative to 'title'
-  images?: { main?: string;[key: string]: string | undefined }; // Allows for a main image and other potential image keys
-  description?: string;
-  source?: string; // For external recipes in "To Make" list
-  // Add other common recipe fields as needed (e.g., prepTime, cookTime, servings, instructions)
-}
-
-// Define a specific type for items in the "Recipes to Make" list
-interface ToMakeRecipeItem {
-  id?: string; // Firestore document ID
-  title?: string;
-  name?: string; // Optional: if 'name' is used as an alternative to 'title'
-  source?: string; // Source URL is crucial for these items
-  addedAt?: Timestamp | Date; // Firestore serverTimestamp
-}
-
-interface HomePageClientProps {
-  initialRecipes: Recipe[];
-  fetchError: string | null;
-}
+import { Recipe } from '@/types'; // Import types from shared location
+import { useRecipesListener } from '@/hooks/useRecipesListener';
+import { useRecipesToMakeListener } from '@/hooks/useRecipesToMakeListener';
+import RecipesToMakeList from '../components/RecipesToMakeList';
 
 const RECIPES_TO_MAKE_COLLECTION = 'recipesToMakeGlobal'; // Firestore collection name
 
-const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchError }) => {
+const HomePageClient: React.FC = () => {
+  const { allRecipes, isLoadingMainRecipes, mainRecipesError } = useRecipesListener();
+  const { recipesToMake, isLoadingToMake } = useRecipesToMakeListener();
+
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [recipeOpenBeforeSearch, setRecipeOpenBeforeSearch] = useState<Recipe | null>(null);
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false); // State for Add Recipe modal
   const [showToMakeModal, setShowToMakeModal] = useState(false); // State for modal visibility
-  const [recipesToMake, setRecipesToMake] = useState<ToMakeRecipeItem[]>([]);
-  const [isLoadingToMake, setIsLoadingToMake] = useState(true);
   const [isProcessingToMake, setIsProcessingToMake] = useState(false);
   const recipeDetailWrapperRef = useRef<HTMLDivElement>(null); // Ref for the new wrapper div
 
@@ -89,28 +63,6 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
     setSelectedRecipe(null);
     setRecipeOpenBeforeSearch(null);
   };
-
-  // Load "to make" list from Firebase on component mount and listen for real-time updates
-  useEffect(() => {
-    setIsLoadingToMake(true);
-    const q = query(collection(db, RECIPES_TO_MAKE_COLLECTION)); // Add orderBy('addedAt', 'desc') if you want
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const items: ToMakeRecipeItem[] = [];
-      querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as ToMakeRecipeItem);
-      });
-      setRecipesToMake(items);
-      setIsLoadingToMake(false);
-    }, (error) => {
-      console.error("Error fetching 'recipes to make' from Firestore: ", error);
-      setIsLoadingToMake(false);
-      // Optionally set an error state to display to the user
-    });
-
-    // Cleanup listener on component unmount
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     // Scroll to RecipeDetail when a new recipe is selected and search is not active
@@ -162,17 +114,31 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
     }
   };
 
-  const filteredRecipes = initialRecipes.filter(recipe => {
-    if (!recipe) return false;
+  const filteredRecipes = useMemo(() => {
+    if (!searchTerm) {
+      return allRecipes;
+    }
     const term = searchTerm.toLowerCase();
-    const titleMatch = recipe.title?.toLowerCase().includes(term);
-    const authorMatch = recipe.author?.toLowerCase().includes(term);
-    const ingredientsMatch = recipe.ingredients && Object.values(recipe.ingredients)
-      .flat()
-      .some((ingredient: string) => typeof ingredient === 'string' && ingredient.toLowerCase().includes(term));
-    const categoriesMatch = recipe.categories && recipe.categories.some((category: string) => category.toLowerCase().includes(term));
-    return titleMatch || authorMatch || ingredientsMatch || categoriesMatch;
-  });
+    return allRecipes.filter((recipe: Recipe) => {
+      if (!recipe) return false;
+      const titleMatch = recipe.title?.toLowerCase().includes(term);
+      const authorMatch = recipe.author?.toLowerCase().includes(term);
+
+      // Type for individual ingredient item after flattening
+      type IngredientItem = string | { name: string; quantity: number | string | null; unit?: string; description?: string };
+
+      const ingredientsMatch = recipe.ingredients && Object.values(recipe.ingredients)
+        .flat()
+        .some((ingredient: IngredientItem) => {
+          if (typeof ingredient === 'string') return ingredient.toLowerCase().includes(term);
+          if (ingredient && typeof ingredient.name === 'string') return ingredient.name.toLowerCase().includes(term);
+          // Optionally, you could also search in ingredient.description if it exists
+          return false;
+        });
+      const categoriesMatch = recipe.categories && recipe.categories.some((category: string) => category.toLowerCase().includes(term));
+      return titleMatch || authorMatch || ingredientsMatch || categoriesMatch;
+    });
+  }, [allRecipes, searchTerm]);
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -235,24 +201,39 @@ const HomePageClient: React.FC<HomePageClientProps> = ({ initialRecipes, fetchEr
           </div>
         </div>
 
-        {fetchError && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <strong className="font-bold">Error: </strong>
-            <span className="block sm:inline">{fetchError}</span>
+        {/* Loading and Error states for the main recipe list */}
+        {isLoadingMainRecipes && (
+          <div className="text-center py-10">
+            <p>Loading your delicious recipes...</p>
+            {/* You can add a spinner component here */}
           </div>
         )}
 
-        {!fetchError && selectedRecipe && !searchTerm && (
-          <div ref={recipeDetailWrapperRef}> {/* Attach ref to this new wrapper div */}
-            {/* Add top padding to the section to create the gap. Adjust pt-5 (1.25rem) as needed. */}
-            <section className="pt-5"> {/* Example: Tailwind's pt-5 for padding-top */}
-              <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
-            </section>
+        {!isLoadingMainRecipes && mainRecipesError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
+            <strong className="font-bold">Oops! Something went wrong.</strong>
+            <p>{mainRecipesError}</p>
           </div>
         )}
-        {/* RecipeList is only shown when no recipe is selected OR when searching */}
-        {/* The To Make list and form are now in the modal */}
-        {!fetchError && (!selectedRecipe || searchTerm) && <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />}
+
+        {!isLoadingMainRecipes && !mainRecipesError && (
+          <>
+            {selectedRecipe && !searchTerm && (
+              <div ref={recipeDetailWrapperRef}>
+                <section className="pt-5">
+                  <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
+                </section>
+              </div>
+            )}
+            {(!selectedRecipe || searchTerm) && (
+              filteredRecipes.length > 0 ? (
+                <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">{searchTerm ? "No recipes match your search." : "No recipes yet. Why not add one?"}</div>
+              )
+            )}
+          </>
+        )}
       </div>
     </main>
   );

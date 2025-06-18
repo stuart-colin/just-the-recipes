@@ -133,7 +133,7 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
         content = item.name;
       } else {
         content = JSON.stringify(item); // Or a more user-friendly message
-        console.warn('Unhandled object structure in list item:', item);
+        // console.warn('Unhandled object structure in list item:', item); // Debug log removed
       }
     } else if (typeof item === 'string') {
       content = item;
