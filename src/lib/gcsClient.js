@@ -1,15 +1,18 @@
 import { Storage } from '@google-cloud/storage';
 import { GoogleAuth } from 'google-auth-library';
 
-const GCS_KEY_BASE64 = process.env.GCS_KEY_BASE64;
-// console.log(`[GCS Client Init] GCS_KEY_BASE64 is set: ${GCS_KEY_BASE64 ? 'Yes, length: ' + GCS_KEY_BASE64.length : 'No'}`); // Removed for production
+const GCS_KEY_FROM_ENV = process.env.GCS_KEY_BASE64;
+
+// Enhanced logging for GCS_KEY_BASE64 status
+console.log(`[GCS Client Init] Raw value of process.env.GCS_KEY_BASE64 (type: ${typeof GCS_KEY_FROM_ENV}): ${GCS_KEY_FROM_ENV === undefined ? 'undefined' : (GCS_KEY_FROM_ENV === null ? 'null' : (GCS_KEY_FROM_ENV === '' ? '"" (empty string)' : `String of length ${GCS_KEY_FROM_ENV.length}, starts with "${String(GCS_KEY_FROM_ENV).substring(0, 10)}..."`))}`);
 
 let gcsCredentials;
 
-if (GCS_KEY_BASE64) {
-  // console.log("[GCS Client Init] Using GCS_KEY_BASE64 for authentication."); // Removed for production
+// Check if GCS_KEY_FROM_ENV is a non-empty string
+if (GCS_KEY_FROM_ENV && typeof GCS_KEY_FROM_ENV === 'string' && GCS_KEY_FROM_ENV.length > 0) {
+  console.log("[GCS Client Init] Attempting to use GCS_KEY_FROM_ENV for authentication.");
   try {
-    const credentialsJson = Buffer.from(GCS_KEY_BASE64, 'base64').toString('utf-8');
+    const credentialsJson = Buffer.from(GCS_KEY_FROM_ENV, 'base64').toString('utf-8');
     const parsedCreds = JSON.parse(credentialsJson);
     // Basic check for essential fields in a service account key
     if (parsedCreds && parsedCreds.project_id && parsedCreds.client_email && parsedCreds.private_key) {
@@ -19,18 +22,19 @@ if (GCS_KEY_BASE64) {
       gcsCredentials = undefined; // Explicitly set to undefined to ensure ADC fallback
     }
   } catch (error) {
-    console.error("[GCS Client Init] Failed to parse GCS_KEY_BASE64. Will attempt Application Default Credentials. Error:", error.message);
+    console.error(`[GCS Client Init] Failed to parse GCS_KEY_FROM_ENV (value starting with "${String(GCS_KEY_FROM_ENV).substring(0, 10)}..."). Will attempt Application Default Credentials. Error:`, error.message);
     gcsCredentials = undefined; // Ensure fallback to ADC
   }
 } else {
-  // console.log("[GCS Client Init] GCS_KEY_BASE64 not set. Attempting Application Default Credentials (ADC)."); // Removed for production
+  console.log("[GCS Client Init] GCS_KEY_FROM_ENV is not set, is empty, or not a string. Attempting Application Default Credentials (ADC).");
   // gcsCredentials remains undefined, GoogleAuth will use ADC
 }
 
 /**
  * Initializes and returns a Google Cloud Storage client.
  * @param {string | string[]} scopes - The OAuth2 scopes required for the client.
- * @returns {Storage | null} An initialized Storage client, or null if initialization fails.
+ * @returns {Storage} An initialized Storage client.
+ * @throws {Error} If the Storage client cannot be initialized.
  */
 export function getStorageClient(scopes) {
   try {
@@ -43,6 +47,6 @@ export function getStorageClient(scopes) {
     return storage;
   } catch (error) {
     console.error("[GCS Client Init] Failed to initialize Google Cloud Storage client with GoogleAuth:", error);
-    return null; // Return null or throw, depending on desired error handling
+    throw new Error(`[GCS Client Init] Failed to initialize Storage client: ${error.message}`);
   }
 }
