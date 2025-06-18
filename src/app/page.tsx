@@ -1,5 +1,5 @@
-import { fetchAllRecipesFromGCS } from '../lib/gcsService';
 import HomePageClient from './HomePageClient'; // The Client Component we just created
+import { fetchAllRecipesFromFirestore } from '../lib/firebaseRecipeService'; // Import new service
 
 // Define a more specific Recipe type, consistent with HomePageClient.tsx
 interface Recipe {
@@ -20,7 +20,7 @@ export default async function Page() {
 
   try {
     // Fetching data directly in the Server Component
-    const fetchedRecipes = await fetchAllRecipesFromGCS();
+    const fetchedRecipes = await fetchAllRecipesFromFirestore(); // Use Firestore fetching
     // Ensure recipe is not null and is an object before treating it as Recipe
     recipes = fetchedRecipes.filter((recipe: unknown): recipe is Recipe => recipe != null && typeof recipe === 'object');
   } catch (e: unknown) {
