@@ -1,9 +1,6 @@
 import { Storage } from '@google-cloud/storage';
 import { GoogleAuth } from 'google-auth-library';
 
-const TEST_VAR_FROM_ENV = process.env.TEST_GCS_CLIENT_VAR;
-console.log(`[GCS Client Init - TEST] Value of TEST_GCS_CLIENT_VAR: ${TEST_VAR_FROM_ENV}`);
-
 const GCS_KEY_FROM_ENV = process.env.GCS_KEY_BASE64;
 
 // Enhanced logging for GCS_KEY_BASE64 status
