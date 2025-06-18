@@ -1,6 +1,6 @@
 // d:\Code Projects\just-the-recipes\src\lib\firebaseRecipeService.js
 import { db } from './firebase'; // Your existing Firebase client-side initialization
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const RECIPES_COLLECTION = 'recipes';
 
