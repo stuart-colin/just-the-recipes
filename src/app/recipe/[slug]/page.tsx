@@ -31,7 +31,7 @@ export default async function RecipePage({ params }: RecipePageProps) {
     return (
       <main className="container mx-auto px-4 py-8 text-center">
         <h1 className="text-3xl font-bold mb-6">Recipe Not Found</h1>
-        <p className="mb-6">Sorry, we couldn&apos;t find the recipe you're looking for.</p>
+        <p className="mb-6">Sorry, we couldn&apos;t find the recipe you&apos;re looking for.</p>
         <Button asChild variant="outline">
           <Link href="/">Go Back to All Recipes</Link>
         </Button>
