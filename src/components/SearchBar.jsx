@@ -6,7 +6,7 @@ const SearchBar = ({ searchTerm, onSearchChange }) => {
     <div className="w-full">
       <Input
         type="search"
-        placeholder="Filter Recipes by title, author, or ingredients..."
+        placeholder="Filter Recipes by title, author, tags, or ingredients..."
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)} />
     </div>
