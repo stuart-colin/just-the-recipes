@@ -1,7 +1,7 @@
 // Assuming firebaseRecipeService.ts exists and has other functions like listenToAllRecipesFromFirestore
 
 import { db } from './firebase'; // Your Firebase config
-import { collection, query, where, getDocs, limit, DocumentData, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { Recipe } from '@/types'; // Your Recipe type
 // import { slugify } from './utils'; // slugify might be used here if adding recipes, but not for fetching by existing slug
 

@@ -1,6 +1,6 @@
 "use client"; // Mark as a Client Component
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import SearchBar from '../components/SearchBar';
 import RecipeList from '../components/RecipeList';
