@@ -12,6 +12,8 @@ import StarRating from './StarRating';
 import RecipeMetaDetails from './RecipeMetaDetails'; // Import the new component
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react'; // Import X icon
+import { Switch } from "@/components/ui/switch"; // Import Switch for Cook Mode
+import { Label } from "@/components/ui/label";   // Import Label for Cook Mode
 
 const RecipeDetail = ({ selectedRecipe, onClose }) => {
   if (!selectedRecipe) {
@@ -37,9 +39,56 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
   const originalServings = initialServingsFromRecipe || 1; // Base for scaling
   const [adjustedServings, setAdjustedServings] = useState(originalServings);
 
+  // State for Cook Mode
+  const [cookModeUserIntent, setCookModeUserIntent] = useState(false); // User's explicit toggle state
+  const [wakeLock, setWakeLock] = useState(null);
+  const [isWakeLockApiSupported, setIsWakeLockApiSupported] = useState(false);
+
   useEffect(() => {
     setAdjustedServings(initialServingsFromRecipe || 1);
   }, [initialServingsFromRecipe]);
+
+  useEffect(() => {
+    setIsWakeLockApiSupported('wakeLock' in navigator);
+  }, []);
+
+  useEffect(() => {
+    const acquireLock = async () => {
+      if (!isWakeLockApiSupported || !cookModeUserIntent || document.visibilityState !== 'visible' || wakeLock) {
+        return;
+      }
+      try {
+        const newLock = await navigator.wakeLock.request('screen');
+        newLock.addEventListener('release', () => {
+          setWakeLock(null);
+        });
+        setWakeLock(newLock);
+      } catch (err) {
+        setCookModeUserIntent(false); // Turn off intent if acquiring fails
+        setWakeLock(null);
+      }
+    };
+
+    if (cookModeUserIntent && document.visibilityState === 'visible' && !wakeLock) {
+      acquireLock();
+    }
+
+    const handleVisibilityChange = () => {
+      if (cookModeUserIntent && document.visibilityState === 'visible' && !wakeLock) {
+        acquireLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLock) {
+        wakeLock.release().catch(() => { }); // Release and ignore errors
+        setWakeLock(null);
+      }
+    };
+  }, [cookModeUserIntent, isWakeLockApiSupported, wakeLock]);
 
   const handleDecrementServings = () => {
     setAdjustedServings(prev => Math.max(1, prev - 1));
@@ -51,6 +100,14 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
 
   const handleResetServings = () => {
     setAdjustedServings(originalServings);
+  };
+
+  const handleCookModeToggle = (checked) => {
+    setCookModeUserIntent(checked);
+    if (!checked && wakeLock) { // If user is turning it OFF
+      wakeLock.release().catch(() => { });
+      setWakeLock(null);
+    }
   };
 
   const formatQuantity = (quantity) => {
@@ -206,6 +263,20 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
               <CardDescription className="text-lg ml-2">By: {author}</CardDescription>
             )}
           </div>
+          {/* Cook Mode Toggle */}
+          {isWakeLockApiSupported && (
+            <div className="flex items-center space-x-2 mt-2 md:mt-0">
+              <Switch
+                id="cook-mode-toggle"
+                checked={cookModeUserIntent}
+                onCheckedChange={handleCookModeToggle}
+                aria-label="Toggle Cook Mode"
+              />
+              <Label htmlFor="cook-mode-toggle" className="text-sm font-normal text-muted-foreground">
+                Cook Mode
+              </Label>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
