@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { listenToAllRecipesFromFirestore } from '@/lib/firebaseRecipeService';
 import { Recipe } from '@/types'; // Assuming types are in src/types/index.ts
+import { slugify } from '@/lib/utils'; // Import slugify
 
 export function useRecipesListener() {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
@@ -20,7 +21,12 @@ export function useRecipesListener() {
             setMainRecipesError(`Failed to load recipes. Details: ${error.message}`);
             setAllRecipes([]);
           } else if (updatedRecipes) {
-            setAllRecipes(updatedRecipes as Recipe[]);
+            // Ensure all recipes have a slug; generate if missing (best if slug is stored in Firestore)
+            const recipesWithSlugs = updatedRecipes.map(recipe => ({
+              ...recipe,
+              slug: recipe.slug || slugify(recipe.title || recipe.name || `recipe-${recipe.id}`)
+            }));
+            setAllRecipes(recipesWithSlugs as Recipe[]);
             setMainRecipesError(null);
           }
           setIsLoadingMainRecipes(false);

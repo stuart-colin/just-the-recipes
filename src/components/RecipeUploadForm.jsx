@@ -54,11 +54,9 @@ const RecipeUploadForm = ({ onSubmit }) => {
       try {
         const recipeData = JSON.parse(event.target.result);
 
-        // Add _originalFilenameSlug based on the file selected for submission
-        const originalNameWithoutExtension = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-        const originalFilenameSlug = slugify(originalNameWithoutExtension);
-        recipeData._originalFilenameSlug = originalFilenameSlug;
-
+        // Ensure a slug is generated and added from the recipe title or filename
+        const titleForSlug = recipeData.title || recipeData.name || (file.name.substring(0, file.name.lastIndexOf('.')) || file.name);
+        recipeData.slug = slugify(titleForSlug);
         const success = await onSubmit(recipeData);
         if (success) {
           setFile(null);

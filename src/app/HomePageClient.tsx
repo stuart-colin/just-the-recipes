@@ -1,8 +1,8 @@
 "use client"; // Mark as a Client Component
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import SearchBar from '../components/SearchBar';
-import RecipeDetail from '../components/RecipeDetail';
 import RecipeList from '../components/RecipeList';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button"; // Import Button
@@ -26,50 +26,39 @@ import { Recipe } from '@/types'; // Import types from shared location
 import { useRecipesListener } from '@/hooks/useRecipesListener';
 import { useRecipesToMakeListener } from '@/hooks/useRecipesToMakeListener';
 import RecipesToMakeList from '../components/RecipesToMakeList';
+import { slugify } from '@/lib/utils'; // Import slugify for fallback
 
 const RECIPES_TO_MAKE_COLLECTION = 'recipesToMakeGlobal'; // Firestore collection name
 
 const HomePageClient: React.FC = () => {
+  const router = useRouter();
   const { allRecipes, isLoadingMainRecipes, mainRecipesError } = useRecipesListener();
   const { recipesToMake, isLoadingToMake } = useRecipesToMakeListener();
 
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  // selectedRecipe, recipeOpenBeforeSearch, and recipeDetailWrapperRef are no longer needed
+  // as RecipeDetail will be on its own page.
   const [searchTerm, setSearchTerm] = useState('');
-  const [recipeOpenBeforeSearch, setRecipeOpenBeforeSearch] = useState<Recipe | null>(null);
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false); // State for Add Recipe modal
   const [showToMakeModal, setShowToMakeModal] = useState(false); // State for modal visibility
   const [isProcessingToMake, setIsProcessingToMake] = useState(false);
-  const recipeDetailWrapperRef = useRef<HTMLDivElement>(null); // Ref for the new wrapper div
 
   const onRecipeSelect = (recipe: Recipe) => {
-    setSelectedRecipe(recipe);
-    setSearchTerm('');
-    setRecipeOpenBeforeSearch(null);
+    const slug = recipe.slug || slugify(recipe.title || recipe.name || `recipe-${recipe.id}`);
+    if (slug) {
+      router.push(`/recipe/${slug}`);
+    } else {
+      // Fallback or error handling if a recipe somehow doesn't have a slug or title/name
+      console.error("Recipe is missing a slug and cannot generate one:", recipe);
+      // Optionally, you could display an error to the user.
+    }
   };
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term);
-    if (term) {
-      if (selectedRecipe && !recipeOpenBeforeSearch) {
-        setRecipeOpenBeforeSearch(selectedRecipe);
-      }
-      setSelectedRecipe(null);
-    } else {
-      setSelectedRecipe(recipeOpenBeforeSearch);
-    }
+    // The logic for selectedRecipe and recipeOpenBeforeSearch is removed.
   };
 
-  const handleCloseRecipeDetail = () => {
-    setSelectedRecipe(null);
-    setRecipeOpenBeforeSearch(null);
-  };
-
-  useEffect(() => {
-    // Scroll to RecipeDetail when a new recipe is selected and search is not active
-    if (selectedRecipe && !searchTerm && recipeDetailWrapperRef.current) {
-      recipeDetailWrapperRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [selectedRecipe, searchTerm]); // Rerun effect when selectedRecipe or searchTerm changes
+  // useEffect for scrolling to RecipeDetail is removed.
 
   const handleAddRecipeToFirebase = async (recipeData: { title: string, source: string }) => {
     setIsProcessingToMake(true);
@@ -218,14 +207,8 @@ const HomePageClient: React.FC = () => {
 
         {!isLoadingMainRecipes && !mainRecipesError && (
           <>
-            {selectedRecipe && !searchTerm && (
-              <div ref={recipeDetailWrapperRef}>
-                <section className="pt-5">
-                  <RecipeDetail selectedRecipe={selectedRecipe} onClose={handleCloseRecipeDetail} />
-                </section>
-              </div>
-            )}
-            {(!selectedRecipe || searchTerm) && (
+            {/* RecipeDetail is no longer rendered here. RecipeList is always shown, filtered by searchTerm. */}
+            {(
               filteredRecipes.length > 0 ? (
                 <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />
               ) : (

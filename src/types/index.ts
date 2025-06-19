@@ -24,8 +24,7 @@ export interface Recipe {
   rating?: { average?: string | number; votes?: string | number };
   notes?: string[];
   slug?: string;
-  createdAt?: Timestamp | Date;
-  _originalFilenameSlug?: string; // Temporary field from upload
+  createdAt?: Timestamp | Date; // Added by Firestore service
 }
 
 export interface ToMakeRecipeItem {

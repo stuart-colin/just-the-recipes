@@ -1,4 +1,6 @@
+"use client"; // Make this a Client Component
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import Link from 'next/link';
 import {
   Card,
@@ -16,6 +18,7 @@ import { Switch } from "@/components/ui/switch"; // Import Switch for Cook Mode
 import { Label } from "@/components/ui/label";   // Import Label for Cook Mode
 
 const RecipeDetail = ({ selectedRecipe, onClose }) => {
+  const router = useRouter(); // Initialize useRouter
   if (!selectedRecipe) {
     return <div></div>;
   }
@@ -107,6 +110,14 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
     if (!checked && wakeLock) { // If user is turning it OFF
       wakeLock.release().catch(() => { });
       setWakeLock(null);
+    }
+  };
+
+  const handleCloseButtonClick = () => {
+    if (typeof onClose === 'function') {
+      onClose(); // Call the provided onClose function (e.g., for modals)
+    } else {
+      router.back(); // Navigate to the previous page if onClose is not a function
     }
   };
 
@@ -243,18 +254,17 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
 
   return (
     <Card className="w-full relative"> {/* Added relative positioning for the close button */}
+      {/* "X" button now always renders if a recipe is selected, behavior depends on onClose */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 right-4 h-8 w-8 z-10" // Positioned top-right, ensure z-index if needed
+        onClick={handleCloseButtonClick}
+        aria-label="Close recipe details or go back"
+      >
+        <X className="h-5 w-5" />
+      </Button>
       <CardHeader>
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 h-8 w-8" // Positioned top-right
-            onClick={onClose}
-            aria-label="Close recipe details"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        )}
         <CardTitle className="text-3xl font-bold">{title || selectedRecipe.name || 'Untitled Recipe'}</CardTitle>
         <div className="flex items-center justify-between">
           <div className="flex items-center">

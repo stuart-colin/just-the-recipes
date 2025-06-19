@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, XCircle } from 'lucide-react';
 import { useDynamicList } from '@/hooks/useDynamicList'; // Assuming the hook is in lib
+import { slugify } from '@/lib/utils'; // Import slugify
 import InlineEditable from './InlineEditable'; // Import the new component
 
 const initialRecipeState = {
@@ -270,9 +271,13 @@ const RecipeManualForm = ({ onSubmit }) => {
       notes: notes,
       ingredients: ingredientsForSubmission,
       instructions: instructionsForSubmission
+      // Slug will be added here
     };
 
-    const success = await onSubmit(finalRecipeData);
+    // Generate slug from the title
+    const recipeWithSlug = { ...finalRecipeData, slug: slugify(finalRecipeData.title || '') };
+
+    const success = await onSubmit(recipeWithSlug);
     if (success) {
       setRecipeData(initialRecipeState);
       updateCategoriesList(initialRecipeState.categories);
