@@ -1,13 +1,13 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics, isSupported } from "firebase/analytics"; // Import isSupported
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, FirebaseApp, FirebaseOptions } from "firebase/app";
+import { getAnalytics, isSupported, Analytics } from "firebase/analytics"; // Import isSupported and Analytics type
+import { getFirestore, Firestore } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -34,9 +34,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);
-const db = getFirestore(app);
+const app: FirebaseApp = initializeApp(firebaseConfig);
+const analytics: Promise<Analytics | null> = isSupported().then(yes => yes ? getAnalytics(app) : null);
+const db: Firestore = getFirestore(app);
 
 // Export the db instance for use in other parts of your app
 export { db, app, analytics };
