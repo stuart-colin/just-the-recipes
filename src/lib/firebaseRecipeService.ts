@@ -1,7 +1,7 @@
 // Assuming firebaseRecipeService.ts exists and has other functions like listenToAllRecipesFromFirestore
 
 import { db } from './firebase'; // Your Firebase config
-import { collection, query, where, getDocs, limit, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, limit, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { Recipe } from '@/types'; // Your Recipe type
 // import { slugify } from './utils'; // slugify might be used here if adding recipes, but not for fetching by existing slug
 
@@ -64,6 +64,22 @@ export const fetchRecipeBySlugFromFirestore = async (slug: string): Promise<Reci
     return null;
   } catch (error) {
     console.error("Error fetching recipe by slug:", error);
+    return null;
+  }
+};
+
+/**
+ * Adds a new recipe to Firestore.
+ * @param recipe - The recipe object to add.
+ * @returns The saved recipe or null if failed.
+ */
+export const addRecipeToFirestore = async (recipe: Recipe): Promise<Recipe | null> => {
+  try {
+    const recipesCollection = collection(db, 'recipes');
+    const docRef = await addDoc(recipesCollection, recipe);
+    return { ...recipe, id: docRef.id }; // Spread first, then set id
+  } catch (error) {
+    console.error("Error adding recipe to Firestore:", error);
     return null;
   }
 };

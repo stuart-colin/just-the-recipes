@@ -5,10 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Recipe } from '@/types'; // Import your Recipe type
 
 interface RecipePageProps {
-  params: {
-    slug: string;
-  };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 // This function can be used for Static Site Generation if you have a known set of slugs
@@ -20,7 +18,7 @@ interface RecipePageProps {
 // }
 
 export default async function RecipePage({ params }: RecipePageProps) {
-  const { slug } = params;
+  const { slug } = await params;
   let recipe: Recipe | null = null;
 
   if (slug) {
