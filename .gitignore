@@ -44,3 +44,5 @@ next-env.d.ts
 
 #recipes and other offline files
 recipes
+upload-recipes.mjs
+convert-recipes.mjs

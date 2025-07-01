@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from 'next/link';
 import { Geist, Geist_Mono, Cabin_Sketch } from "next/font/google"; // Import Cabin_Sketch
 import "./globals.css";
 
@@ -36,11 +37,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${cabinSketch.variable} antialiased`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} ${cabinSketch.variable} antialiased`} >
+        <main className="container mx-auto px-4 py-8">
+          <header className="text-center">
+            <h1
+              className="text-5xl mb-2 font-bold"
+              style={{
+                color: '#49d0ae',
+                fontFamily: "var(--font-cabin-sketch), sans-serif",
+              }}
+            >
+              <Link href="/">Just the Recipes.</Link>
+            </h1>
+            <p className="text-gray-600 font-sans italic">
+              All of the marshmallow, none of the fluff.
+            </p>
+          </header>
+          {children}
+        </main>
       </body>
-    </html>
+    </html >
   );
 }

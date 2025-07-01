@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import SearchBar from '../components/SearchBar';
 import RecipeList from '../components/RecipeList';
-import Link from 'next/link';
 import { Button } from "@/components/ui/button"; // Import Button
 import { ClipboardList, Plus } from 'lucide-react'; // Import ClipboardList and Plus icons
 import AddRecipeToMakeForm from '../components/AddRecipeToMakeForm';
@@ -116,9 +115,9 @@ const HomePageClient: React.FC = () => {
       // Type for individual ingredient item after flattening
       type IngredientItem = string | { name: string; quantity: number | string | null; unit?: string; description?: string };
 
-      const ingredientsMatch = recipe.ingredients && Object.values(recipe.ingredients)
-        .flat()
-        .some((ingredient: IngredientItem) => {
+      const ingredientsMatch =
+        recipe.ingredients &&
+        recipe.ingredients.flatMap(section => section.items).some((ingredient: IngredientItem) => {
           if (typeof ingredient === 'string') return ingredient.toLowerCase().includes(term);
           if (ingredient && typeof ingredient.name === 'string') return ingredient.name.toLowerCase().includes(term);
           // Optionally, you could also search in ingredient.description if it exists
@@ -130,95 +129,78 @@ const HomePageClient: React.FC = () => {
   }, [allRecipes, searchTerm]);
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="flex flex-col space-y-12">
-        <header className="text-center">
-          <h1
-            className="text-5xl mb-2 font-bold"
-            style={{
-              color: '#49d0ae',
-              fontFamily: "var(--font-cabin-sketch), sans-serif",
-            }}
-          >
-            <Link href="/">Just the Recipes.</Link>
-          </h1>
-          <p className="text-gray-600 font-sans italic">
-            All of the marshmallow, none of the fluff.
-          </p>
-        </header>
+    <div className="flex flex-col space-y-12 mt-5">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
+        <section className="w-full md:flex-grow"> {/* Search bar takes available space */}
+          <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
+        </section>
+        <div className="flex gap-2"> {/* Group for action buttons */}
+          {/* Trigger button for the "To Make" modal */}
+          <Dialog open={showToMakeModal} onOpenChange={setShowToMakeModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="Open 'Recipes to Make' list">
+                <ClipboardList className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Recipes to Make</DialogTitle>
+              </DialogHeader>
+              <AddRecipeToMakeForm
+                onAddRecipe={handleAddRecipeToFirebase}
+                isProcessing={isProcessingToMake}
+              />
+              {isLoadingToMake && <p className="text-center py-4">Loading list...</p>}
+              {!isLoadingToMake && recipesToMake.length === 0 && <p className="text-center text-muted-foreground py-4">{'Your "Recipes to Make" list is empty.'}</p>}
+              {!isLoadingToMake && recipesToMake.length > 0 && <RecipesToMakeList recipesToMake={recipesToMake} onRemoveRecipe={handleRemoveRecipeFromFirebase} />}
+            </DialogContent>
+          </Dialog>
 
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-xl mx-auto">
-          <section className="w-full md:flex-grow"> {/* Search bar takes available space */}
-            <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
-          </section>
-          <div className="flex gap-2"> {/* Group for action buttons */}
-            {/* Trigger button for the "To Make" modal */}
-            <Dialog open={showToMakeModal} onOpenChange={setShowToMakeModal}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Open 'Recipes to Make' list">
-                  <ClipboardList className="h-5 w-5" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Recipes to Make</DialogTitle>
-                </DialogHeader>
-                <AddRecipeToMakeForm
-                  onAddRecipe={handleAddRecipeToFirebase}
-                  isProcessing={isProcessingToMake}
-                />
-                {isLoadingToMake && <p className="text-center py-4">Loading list...</p>}
-                {!isLoadingToMake && recipesToMake.length === 0 && <p className="text-center text-muted-foreground py-4">{'Your "Recipes to Make" list is empty.'}</p>}
-                {!isLoadingToMake && recipesToMake.length > 0 && <RecipesToMakeList recipesToMake={recipesToMake} onRemoveRecipe={handleRemoveRecipeFromFirebase} />}
-              </DialogContent>
-            </Dialog>
-
-            {/* Trigger button for the "Add Recipe" modal */}
-            <Dialog open={showAddRecipeModal} onOpenChange={setShowAddRecipeModal}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Add new recipe">
-                  <Plus className="h-5 w-5" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg md:max-w-xl lg:max-w-7xl max-h-[90vh] overflow-y-auto"> {/* Made wider */}
-                <DialogHeader>
-                  <DialogTitle>Add New Recipe</DialogTitle>
-                </DialogHeader>
-                <AddRecipeDialogContent onClose={() => setShowAddRecipeModal(false)} />
-              </DialogContent>
-            </Dialog>
-          </div>
+          {/* Trigger button for the "Add Recipe" modal */}
+          <Dialog open={showAddRecipeModal} onOpenChange={setShowAddRecipeModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="Add new recipe">
+                <Plus className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg md:max-w-xl lg:max-w-7xl max-h-[90vh] overflow-y-auto"> {/* Made wider */}
+              <DialogHeader>
+                <DialogTitle>Add New Recipe</DialogTitle>
+              </DialogHeader>
+              <AddRecipeDialogContent onClose={() => setShowAddRecipeModal(false)} />
+            </DialogContent>
+          </Dialog>
         </div>
-
-        {/* Loading and Error states for the main recipe list */}
-        {isLoadingMainRecipes && (
-          <div className="text-center py-10">
-            <p>Loading your delicious recipes...</p>
-            {/* You can add a spinner component here */}
-          </div>
-        )}
-
-        {!isLoadingMainRecipes && mainRecipesError && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
-            <strong className="font-bold">Oops! Something went wrong.</strong>
-            <p>{mainRecipesError}</p>
-          </div>
-        )}
-
-        {!isLoadingMainRecipes && !mainRecipesError && (
-          <>
-            {/* RecipeDetail is no longer rendered here. RecipeList is always shown, filtered by searchTerm. */}
-            {(
-              filteredRecipes.length > 0 ? (
-                <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />
-              ) : (
-                <div className="text-center py-10 text-muted-foreground">{searchTerm ? "No recipes match your search." : "No recipes yet. Why not add one?"}</div>
-              )
-            )}
-          </>
-        )}
       </div>
-    </main>
+
+      {/* Loading and Error states for the main recipe list */}
+      {isLoadingMainRecipes && (
+        <div className="text-center py-10">
+          <p>Loading your delicious recipes...</p>
+          {/* You can add a spinner component here */}
+        </div>
+      )}
+
+      {!isLoadingMainRecipes && mainRecipesError && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
+          <strong className="font-bold">Oops! Something went wrong.</strong>
+          <p>{mainRecipesError}</p>
+        </div>
+      )}
+
+      {!isLoadingMainRecipes && !mainRecipesError && (
+        <>
+          {/* RecipeDetail is no longer rendered here. RecipeList is always shown, filtered by searchTerm. */}
+          {(
+            filteredRecipes.length > 0 ? (
+              <RecipeList onRecipeSelect={onRecipeSelect} recipes={filteredRecipes} />
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">{searchTerm ? "No recipes match your search." : "No recipes yet. Why not add one?"}</div>
+            )
+          )}
+        </>
+      )}
+    </div>
   );
 };
 

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useReducer } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, XCircle } from 'lucide-react';
 import { useDynamicList } from '@/hooks/useDynamicList'; // Assuming the hook is in lib
 import { slugify } from '@/lib/utils'; // Import slugify
-import InlineEditable from './InlineEditable'; // Import the new component
+import InlineEditable from './InlineEditable';
+import RecipeSectionGroup from './RecipeSectionGroup';
 
 const initialRecipeState = {
   title: '',
@@ -22,17 +23,134 @@ const initialRecipeState = {
   categories: [],
   images: { main: '', gallery: [] },
   ingredients: [
-    { id: `ingredient-group-${Date.now()}`, name: 'Main Ingredients', items: [{ name: '', quantity: null, unit: '', description: '' }] }
+    { id: `ingredient-group-${Date.now()}`, title: 'Main Ingredients', items: [{ name: '', quantity: null, unit: '', description: '' }] }
   ],
   instructions: [
-    { id: `instruction-group-${Date.now()}`, name: 'Main Steps', steps: [''] }
+    { id: `preparation-group-${Date.now()}`, title: 'Main Steps', steps: [''] }
   ],
   notes: [],
 };
 
+// Reducer function to manage recipeData state
+const recipeReducer = (state, action) => {
+  switch (action.type) {
+    case 'UPDATE_FIELD': {
+      const { name, value } = action.payload;
+      if (name === 'servings' || name === 'calories_per_serving') {
+        const numValue = parseFloat(value);
+        return { ...state, [name]: value === '' ? null : (isNaN(numValue) ? null : numValue) };
+      }
+      return { ...state, [name]: value };
+    }
+    case 'UPDATE_NESTED_FIELD': {
+      const { parentKey, childKey, value } = action.payload;
+      return {
+        ...state,
+        [parentKey]: {
+          ...state[parentKey],
+          [childKey]: value,
+        },
+      };
+    }
+    case 'ADD_INGREDIENT_GROUP': {
+      const { title, id } = action.payload;
+      const currentIngredients = Array.isArray(state.ingredients) ? state.ingredients : [];
+      return {
+        ...state,
+        ingredients: [...currentIngredients, { id, title, items: [{ name: '', quantity: null, unit: '', description: '' }] }],
+      };
+    }
+    case 'REMOVE_INGREDIENT_GROUP':
+      return { ...state, ingredients: state.ingredients.filter(group => group.id !== action.payload.groupId) };
+    case 'UPDATE_INGREDIENT_GROUP_NAME': {
+      const { groupId, newName } = action.payload;
+      return {
+        ...state,
+        ingredients: state.ingredients.map(group => group.id === groupId ? { ...group, title: newName } : group),
+      };
+    }
+    case 'ADD_INGREDIENT_ITEM': {
+      const { groupId } = action.payload;
+      return {
+        ...state,
+        ingredients: state.ingredients.map(group =>
+          group.id === groupId
+            ? { ...group, items: [...group.items, { name: '', quantity: null, unit: '', description: '' }] }
+            : group
+        ),
+      };
+    }
+    case 'REMOVE_INGREDIENT_ITEM': {
+      const { groupId, itemIndex } = action.payload;
+      return {
+        ...state,
+        ingredients: state.ingredients.map(group =>
+          group.id === groupId
+            ? { ...group, items: group.items.filter((_, i) => i !== itemIndex) }
+            : group
+        ),
+      };
+    }
+    case 'UPDATE_INGREDIENT_ITEM': {
+      const { groupId, itemIndex, field, value } = action.payload;
+      return {
+        ...state,
+        ingredients: state.ingredients.map(group => {
+          if (group.id !== groupId) return group;
+          const updatedItems = group.items.map((item, idx) => {
+            if (idx !== itemIndex) return item;
+            if (field === 'quantity') {
+              const numValue = parseFloat(value);
+              return { ...item, [field]: value === '' ? null : (isNaN(numValue) ? null : numValue) };
+            }
+            return { ...item, [field]: value };
+          });
+          return { ...group, items: updatedItems };
+        }),
+      };
+    }
+    case 'ADD_INSTRUCTION_GROUP': {
+      const { title, id } = action.payload;
+      const currentInstructions = Array.isArray(state.instructions) ? state.instructions : [];
+      return { ...state, instructions: [...currentInstructions, { id, title, steps: [''] }] };
+    }
+    case 'REMOVE_INSTRUCTION_GROUP':
+      return { ...state, instructions: state.instructions.filter(group => group.id !== action.payload.groupId) };
+    case 'UPDATE_INSTRUCTION_GROUP_NAME': {
+      const { groupId, newName } = action.payload;
+      return {
+        ...state,
+        instructions: state.instructions.map(group => group.id === groupId ? { ...group, title: newName } : group),
+      };
+    }
+    case 'ADD_INSTRUCTION_STEP': {
+      const { groupId } = action.payload;
+      return { ...state, instructions: state.instructions.map(group => group.id === groupId ? { ...group, steps: [...group.steps, ''] } : group) };
+    }
+    case 'REMOVE_INSTRUCTION_STEP': {
+      const { groupId, stepIndex } = action.payload;
+      return { ...state, instructions: state.instructions.map(group => group.id === groupId ? { ...group, steps: group.steps.filter((_, i) => i !== stepIndex) } : group) };
+    }
+    case 'UPDATE_INSTRUCTION_STEP': {
+      const { groupId, stepIndex, value } = action.payload;
+      return {
+        ...state, instructions: state.instructions.map(group => {
+          if (group.id !== groupId) return group;
+          const updatedSteps = [...group.steps];
+          updatedSteps[stepIndex] = value;
+          return { ...group, steps: updatedSteps };
+        })
+      };
+    }
+    case 'RESET_FORM':
+      return initialRecipeState;
+    default:
+      return state;
+  }
+};
 
 const RecipeManualForm = ({ onSubmit }) => {
-  const [recipeData, setRecipeData] = useState(initialRecipeState);
+  const [recipeData, dispatch] = useReducer(recipeReducer, initialRecipeState);
 
   // Use custom hooks for simple dynamic lists
   const { list: categories, newItem: newCategory, setNewItem: setNewCategory, addItem: addCategory, removeItem: removeCategory, updateList: updateCategoriesList } = useDynamicList(initialRecipeState.categories);
@@ -41,27 +159,12 @@ const RecipeManualForm = ({ onSubmit }) => {
 
   // Generic handler for simple top-level fields updated by InlineEditable
   const handleFieldSave = (name, value) => {
-    if (name === 'servings' || name === 'calories_per_serving') {
-      const numValue = parseFloat(value);
-      setRecipeData(prev => ({
-        ...prev,
-        [name]: value === '' ? null : (isNaN(numValue) ? null : numValue)
-      }));
-    } else {
-      setRecipeData(prev => ({ ...prev, [name]: value }));
-    }
+    dispatch({ type: 'UPDATE_FIELD', payload: { name, value } });
   };
 
   // Specific save handler for nested fields like rating or images.main
   const handleNestedFieldSave = (parentKey, childKey, value) => {
-    // Add number parsing for rating fields if needed
-    setRecipeData(prev => ({
-      ...prev,
-      [parentKey]: {
-        ...prev[parentKey],
-        [childKey]: value,
-      },
-    }));
+    dispatch({ type: 'UPDATE_NESTED_FIELD', payload: { parentKey, childKey, value } });
   };
 
 
@@ -71,168 +174,88 @@ const RecipeManualForm = ({ onSubmit }) => {
   const handleAddIngredientGroup = () => {
     const trimmedGroupName = newIngredientGroupName.trim();
     const currentIngredients = Array.isArray(recipeData.ingredients) ? recipeData.ingredients : [];
-    if (trimmedGroupName && !currentIngredients.find(group => group.name === trimmedGroupName)) {
+    if (trimmedGroupName && !currentIngredients.find(group => group.title === trimmedGroupName)) {
       const newGroupId = `ingredient-group-${Date.now()}-${currentIngredients.length}`;
-      setRecipeData(prev => ({
-        ...prev,
-        ingredients: [
-          ...(Array.isArray(prev.ingredients) ? prev.ingredients : []),
-          { id: newGroupId, name: trimmedGroupName, items: [{ name: '', quantity: null, unit: '', description: '' }] },
-        ],
-      }));
+      dispatch({ type: 'ADD_INGREDIENT_GROUP', payload: { title: trimmedGroupName, id: newGroupId } });
       setNewIngredientGroupName('');
-    } else if (currentIngredients.find(group => group.name === trimmedGroupName)) {
+    } else if (currentIngredients.find(group => group.title === trimmedGroupName)) {
       alert("Ingredient group name already exists.");
     }
   };
 
   const handleRemoveIngredientGroup = (groupIdToRemove) => {
-    setRecipeData(prev => ({
-      ...prev,
-      ingredients: prev.ingredients.filter(group => group.id !== groupIdToRemove),
-    }));
+    dispatch({ type: 'REMOVE_INGREDIENT_GROUP', payload: { groupId: groupIdToRemove } });
   };
 
   const handleIngredientGroupNameChange = (groupIdToChange, oldNameIgnored, newName) => {
     const trimmedNewName = newName.trim();
     if (trimmedNewName) {
       const nameExistsInOtherGroup = recipeData.ingredients.some(
-        group => group.id !== groupIdToChange && group.name === trimmedNewName
+        group => group.id !== groupIdToChange && group.title === trimmedNewName
       );
       if (nameExistsInOtherGroup) {
         alert("New ingredient group name already exists.");
         return;
       }
-      setRecipeData(prev => ({
-        ...prev,
-        ingredients: prev.ingredients.map(group =>
-          group.id === groupIdToChange ? { ...group, name: trimmedNewName } : group
-        ),
-      }));
+      dispatch({ type: 'UPDATE_INGREDIENT_GROUP_NAME', payload: { groupId: groupIdToChange, newName: trimmedNewName } });
     }
   };
 
   const handleAddIngredientItem = (groupId) => {
-    setRecipeData(prev => ({
-      ...prev,
-      ingredients: prev.ingredients.map(group =>
-        group.id === groupId
-          ? { ...group, items: [...group.items, { name: '', quantity: null, unit: '', description: '' }] }
-          : group
-      ),
-    }));
+    dispatch({ type: 'ADD_INGREDIENT_ITEM', payload: { groupId } });
   };
 
   const handleRemoveIngredientItem = (groupId, itemIndexToRemove) => {
-    setRecipeData(prev => ({
-      ...prev,
-      ingredients: prev.ingredients.map(group =>
-        group.id === groupId
-          ? { ...group, items: group.items.filter((_, i) => i !== itemIndexToRemove) }
-          : group
-      ),
-    }));
+    dispatch({ type: 'REMOVE_INGREDIENT_ITEM', payload: { groupId, itemIndex: itemIndexToRemove } });
   };
 
   const handleIngredientItemChange = (groupId, itemIndex, field, value) => {
-    setRecipeData(prev => ({
-      ...prev,
-      ingredients: prev.ingredients.map(group => {
-        if (group.id === groupId) {
-          const updatedItems = group.items.map((item, idx) => {
-            if (idx === itemIndex) {
-              if (field === 'quantity') {
-                const numValue = parseFloat(value);
-                return { ...item, [field]: value === '' ? null : (isNaN(numValue) ? null : numValue) };
-              }
-              return { ...item, [field]: value };
-            }
-            return item;
-          });
-          return { ...group, items: updatedItems };
-        }
-        return group;
-      }),
-    }));
+    dispatch({ type: 'UPDATE_INGREDIENT_ITEM', payload: { groupId, itemIndex, field, value } });
   };
 
   // --- Instructions ---
-  const [newInstructionGroupName, setNewInstructionGroupName] = useState('');
+  const [newInstructionGroupNameState, setNewInstructionGroupNameState] = useState('');
 
   const handleAddInstructionGroup = () => {
-    const trimmedGroupName = newInstructionGroupName.trim();
+    const trimmedGroupName = newInstructionGroupNameState.trim();
     const currentInstructions = Array.isArray(recipeData.instructions) ? recipeData.instructions : [];
-    if (trimmedGroupName && !currentInstructions.find(group => group.name === trimmedGroupName)) {
+    if (trimmedGroupName && !currentInstructions.find(group => group.title === trimmedGroupName)) {
       const newGroupId = `instr-group-${Date.now()}-${currentInstructions.length}`;
-      setRecipeData(prev => ({
-        ...prev,
-        instructions: [
-          ...(Array.isArray(prev.instructions) ? prev.instructions : []),
-          { id: newGroupId, name: trimmedGroupName, steps: [''] },
-        ]
-      }));
-      setNewInstructionGroupName('');
-    } else if (currentInstructions.find(group => group.name === trimmedGroupName)) {
-      alert("Instruction group name already exists.");
+      dispatch({ type: 'ADD_INSTRUCTION_GROUP', payload: { title: trimmedGroupName, id: newGroupId } });
+      setNewInstructionGroupNameState('');
+    } else if (currentInstructions.find(group => group.title === trimmedGroupName)) {
+      alert("Preparation group name already exists.");
     }
   };
 
   const handleRemoveInstructionGroup = (groupIdToRemove) => {
-    setRecipeData(prev => ({
-      ...prev,
-      instructions: prev.instructions.filter(group => group.id !== groupIdToRemove),
-    }));
+    dispatch({ type: 'REMOVE_INSTRUCTION_GROUP', payload: { groupId: groupIdToRemove } });
   };
 
   const handleInstructionGroupNameChange = (groupIdToChange, oldNameIgnored, newName) => {
     const trimmedNewName = newName.trim();
     if (trimmedNewName) {
       const nameExistsInOtherGroup = recipeData.instructions.some(
-        group => group.id !== groupIdToChange && group.name === trimmedNewName
+        group => group.id !== groupIdToChange && group.title === trimmedNewName
       );
       if (nameExistsInOtherGroup) {
-        alert("New instruction group name already exists.");
+        alert("New preparation group name already exists.");
         return;
       }
-      setRecipeData(prev => ({
-        ...prev,
-        instructions: prev.instructions.map(group =>
-          group.id === groupIdToChange ? { ...group, name: trimmedNewName } : group
-        ),
-      }));
+      dispatch({ type: 'UPDATE_INSTRUCTION_GROUP_NAME', payload: { groupId: groupIdToChange, newName: trimmedNewName } });
     }
   };
 
   const handleAddInstructionStep = (groupId) => {
-    setRecipeData(prev => ({
-      ...prev,
-      instructions: prev.instructions.map(group =>
-        group.id === groupId ? { ...group, steps: [...group.steps, ''] } : group
-      ),
-    }));
+    dispatch({ type: 'ADD_INSTRUCTION_STEP', payload: { groupId } });
   };
 
   const handleRemoveInstructionStep = (groupId, stepIndexToRemove) => {
-    setRecipeData(prev => ({
-      ...prev,
-      instructions: prev.instructions.map(group =>
-        group.id === groupId ? { ...group, steps: group.steps.filter((_, i) => i !== stepIndexToRemove) } : group
-      ),
-    }));
+    dispatch({ type: 'REMOVE_INSTRUCTION_STEP', payload: { groupId, stepIndex: stepIndexToRemove } });
   };
 
   const handleInstructionStepChange = (groupId, stepIndex, value) => {
-    setRecipeData(prev => ({
-      ...prev,
-      instructions: prev.instructions.map(group => {
-        if (group.id === groupId) {
-          const updatedSteps = [...group.steps];
-          updatedSteps[stepIndex] = value;
-          return { ...group, steps: updatedSteps };
-        }
-        return group;
-      }),
-    }));
+    dispatch({ type: 'UPDATE_INSTRUCTION_STEP', payload: { groupId, stepIndex, value } });
   };
 
   const handleFullSubmit = async (e) => {
@@ -242,36 +265,33 @@ const RecipeManualForm = ({ onSubmit }) => {
       return;
     }
 
-    const ingredientsForSubmission = {};
-    (Array.isArray(recipeData.ingredients) ? recipeData.ingredients : []).forEach(group => {
-      if (group.name.trim()) {
-        const nonEmptyItems = group.items.filter(
+    // Filter out empty items and groups for ingredients
+    const ingredientsForSubmission = (Array.isArray(recipeData.ingredients) ? recipeData.ingredients : [])
+      .map(group => ({
+        ...group,
+        items: group.items.filter(
           item => item.name?.trim() || (item.quantity !== null && item.quantity?.toString().trim()) || item.unit?.trim() || item.description?.trim()
-        );
-        if (nonEmptyItems.length > 0) {
-          ingredientsForSubmission[group.name.trim()] = nonEmptyItems;
-        }
-      }
-    });
+        )
+      }))
+      .filter(group => group.title?.trim() && group.items.length > 0);
 
-    const instructionsForSubmission = {};
-    (Array.isArray(recipeData.instructions) ? recipeData.instructions : []).forEach(group => {
-      if (group.name.trim()) {
-        const nonEmptySteps = group.steps.filter(step => step.trim());
-        if (nonEmptySteps.length > 0) {
-          instructionsForSubmission[group.name.trim()] = nonEmptySteps;
-        }
-      }
-    });
+    // Filter out empty steps and groups for instructions
+    const instructionsForSubmission = (Array.isArray(recipeData.instructions) ? recipeData.instructions : [])
+      .map(group => ({
+        ...group,
+        steps: group.steps.filter(step => step.trim())
+      }))
+      .filter(group => group.title?.trim() && group.steps.length > 0);
 
     const finalRecipeData = {
       ...recipeData,
       categories: categories,
       images: { ...recipeData.images, gallery: galleryImages },
       notes: notes,
-      ingredients: ingredientsForSubmission,
-      instructions: instructionsForSubmission
-      // Slug will be added here
+      // Use the cleaned-up arrays. The `id` field from the form state will be
+      // naturally excluded since it's not part of the final submission object structure.
+      ingredients: ingredientsForSubmission.map(({ id, ...rest }) => rest),
+      instructions: instructionsForSubmission.map(({ id, ...rest }) => rest),
     };
 
     // Generate slug from the title
@@ -279,7 +299,7 @@ const RecipeManualForm = ({ onSubmit }) => {
 
     const success = await onSubmit(recipeWithSlug);
     if (success) {
-      setRecipeData(initialRecipeState);
+      dispatch({ type: 'RESET_FORM' });
       updateCategoriesList(initialRecipeState.categories);
       updateGalleryImagesList(initialRecipeState.images.gallery);
       updateNotesList(initialRecipeState.notes);
@@ -387,48 +407,33 @@ const RecipeManualForm = ({ onSubmit }) => {
             <div>
               <h3 className="text-xl font-semibold mb-2">Ingredients</h3>
               {(Array.isArray(recipeData.ingredients) ? recipeData.ingredients : []).map((group) => (
-                <div key={group.id} className="flex items-center gap-2 mb-4"> {/* Changed items-start to items-center */}
-                  <div className="flex-grow p-3 border rounded-md bg-muted/5"> {/* Group content with border */}
-                    <InlineEditable
-                      value={group.name}
-                      onSave={(newName) => handleIngredientGroupNameChange(group.id, group.name, newName)}
-                      placeholder="Group Name"
-                      inputClassName="font-semibold text-md"
-                      displayClassName="font-semibold text-md mb-2 block"
-                    />
-                    {group.items.map((item, itemIndex) => (
-                      <div key={`item-${group.id}-${itemIndex}`} className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-1 items-center text-sm">
-                        <div className="sm:col-span-1">
-                          <InlineEditable value={item.quantity} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'quantity', v)} placeholder="Qty" inputType="number" inputClassName="w-full text-sm h-7" displayClassName="text-sm" />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <InlineEditable value={item.unit} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'unit', v)} placeholder="Unit" inputClassName="w-full text-sm h-7" displayClassName="text-sm" />
-                        </div>
-                        <div className="sm:col-span-5">
-                          <InlineEditable value={item.name} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'name', v)} placeholder="Ingredient Name" inputClassName="w-full text-sm h-7" displayClassName="text-sm" />
-                        </div>
-                        <div className="sm:col-span-3">
-                          <InlineEditable value={item.description} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'description', v)} placeholder="Description" inputClassName="w-full text-sm h-7" displayClassName="text-sm" />
-                        </div>
-                        <div className="sm:col-span-1 flex justify-end">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveIngredientItem(group.id, itemIndex)} aria-label="Remove ingredient item" className="h-6 w-6">
-                            <XCircle className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
+                <RecipeSectionGroup
+                  key={group.id}
+                  group={group}
+                  onGroupNameChange={handleIngredientGroupNameChange}
+                  onRemoveGroup={handleRemoveIngredientGroup}
+                  onAddItem={handleAddIngredientItem}
+                  addItemLabel="Add ingredient"
+                  groupTitlePlaceholder="Group Name"
+                  removeGroupAriaLabel="Remove ingredient group"
+                >
+                  {group.items.map((item, itemIndex) => (
+                    <div key={`item-${group.id}-${itemIndex}`} className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-1 items-center text-sm">
+                      <div className="sm:col-span-1"><InlineEditable value={item.quantity} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'quantity', v)} placeholder="Qty" inputType="number" inputClassName="w-full text-sm h-7" displayClassName="text-sm" /></div>
+                      <div className="sm:col-span-2"><InlineEditable value={item.unit} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'unit', v)} placeholder="Unit" inputClassName="w-full text-sm h-7" displayClassName="text-sm" /></div>
+                      <div className="sm:col-span-5"><InlineEditable value={item.name} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'name', v)} placeholder="Ingredient Name" inputClassName="w-full text-sm h-7" displayClassName="text-sm" /></div>
+                      <div className="sm:col-span-3"><InlineEditable value={item.description} onSave={(v) => handleIngredientItemChange(group.id, itemIndex, 'description', v)} placeholder="Description" inputClassName="w-full text-sm h-7" displayClassName="text-sm" /></div>
+                      <div className="sm:col-span-1 flex justify-end">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveIngredientItem(group.id, itemIndex)} aria-label="Remove ingredient item" className="h-6 w-6">
+                          <XCircle className="h-3 w-3 text-destructive" />
+                        </Button>
                       </div>
-                    ))}
-                    <Button type="button" size="icon" variant="ghost" onClick={() => handleAddIngredientItem(group.id)} className="mt-2" aria-label="Add ingredient">
-                      <PlusCircle className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  {/* Remove Group Button - now a sibling to the bordered group content */}
-                  <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveIngredientGroup(group.id)} aria-label="Remove ingredient group" className="flex-shrink-0"> {/* Removed mt-1 */}
-                    <XCircle className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+                    </div>
+                  ))}
+                </RecipeSectionGroup>
               ))}
               <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                <Input placeholder="New Ingredient Group Name" value={newIngredientGroupName} onChange={(e) => setNewIngredientGroupName(e.target.value)} className="h-9 text-sm flex-grow" />
+                <Input placeholder="New Ingredient Group Name" value={newIngredientGroupName} onChange={(e) => setNewIngredientGroupName(e.target.value)} className="h-9 text-sm flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleAddIngredientGroup()} />
                 <Button type="button" onClick={handleAddIngredientGroup} size="icon" variant="ghost" aria-label="Add ingredient group"><PlusCircle className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -436,45 +441,31 @@ const RecipeManualForm = ({ onSubmit }) => {
             <div>
               <h3 className="text-xl font-semibold mb-2">Preparation</h3>
               {(Array.isArray(recipeData.instructions) ? recipeData.instructions : []).map((group) => (
-                <div key={group.id} className="flex items-center gap-2 mb-4"> {/* Changed items-start to items-center */}
-                  <div className="flex-grow p-3 border rounded-md bg-muted/5"> {/* Group content with border */}
-                    <InlineEditable
-                      value={group.name}
-                      onSave={(newName) => handleInstructionGroupNameChange(group.id, group.name, newName)}
-                      placeholder="Instruction Group Name"
-                      inputClassName="font-semibold text-md"
-                      displayClassName="font-semibold text-md mb-2 block"
-                    />
-                    {group.steps.map((step, stepIndex) => (
-                      <div key={`step-${group.id}-${stepIndex}`} className="flex items-center gap-2 mb-1">
-                        <div className="flex-grow">
-                          <InlineEditable
-                            value={step}
-                            onSave={(v) => handleInstructionStepChange(group.id, stepIndex, v)}
-                            placeholder={`Step ${stepIndex + 1}`}
-                            inputType="textarea"
-                            inputClassName="w-full text-sm"
-                            displayClassName="text-sm w-full"
-                          />
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveInstructionStep(group.id, stepIndex)} aria-label="Remove step" className="h-6 w-6 self-start">
-                          <XCircle className="h-3 w-3 text-destructive" />
-                        </Button>
+                <RecipeSectionGroup
+                  key={group.id}
+                  group={group}
+                  onGroupNameChange={handleInstructionGroupNameChange}
+                  onRemoveGroup={handleRemoveInstructionGroup}
+                  onAddItem={handleAddInstructionStep}
+                  addItemLabel="Add step"
+                  groupTitlePlaceholder="Preparation Group Name"
+                  removeGroupAriaLabel="Remove preparation group"
+                >
+                  {group.steps.map((step, stepIndex) => (
+                    <div key={`step-${group.id}-${stepIndex}`} className="flex items-center gap-2 mb-1">
+                      <div className="flex-grow">
+                        <InlineEditable value={step} onSave={(v) => handleInstructionStepChange(group.id, stepIndex, v)} placeholder={`Step ${stepIndex + 1}`} inputType="textarea" inputClassName="w-full text-sm" displayClassName="text-sm w-full" />
                       </div>
-                    ))}
-                    <Button type="button" size="icon" variant="ghost" onClick={() => handleAddInstructionStep(group.id)} className="mt-2" aria-label="Add step">
-                      <PlusCircle className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  {/* Remove Group Button - now a sibling to the bordered group content */}
-                  <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveInstructionGroup(group.id)} aria-label="Remove instruction group" className="flex-shrink-0"> {/* Removed mt-1 */}
-                    <XCircle className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveInstructionStep(group.id, stepIndex)} aria-label="Remove step" className="h-6 w-6 self-start">
+                        <XCircle className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </RecipeSectionGroup>
               ))}
               <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                <Input placeholder="New Instruction Group Name" value={newInstructionGroupName} onChange={(e) => setNewInstructionGroupName(e.target.value)} className="h-9 text-sm flex-grow" />
-                <Button type="button" onClick={handleAddInstructionGroup} size="icon" variant="ghost" aria-label="Add instruction group"><PlusCircle className="h-4 w-4" /></Button>
+                <Input placeholder="New Preparation Group Name" value={newInstructionGroupNameState} onChange={(e) => setNewInstructionGroupNameState(e.target.value)} className="h-9 text-sm flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleAddInstructionGroup()} />
+                <Button type="button" onClick={handleAddInstructionGroup} size="icon" variant="ghost" aria-label="Add preparation group"><PlusCircle className="h-4 w-4" /></Button>
               </div>
             </div>
 

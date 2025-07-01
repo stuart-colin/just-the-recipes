@@ -29,8 +29,8 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
     author, // Assuming author is a direct string
     rating,
     images, // Assuming an 'images' object with a 'main' property
-    ingredients, // Assuming an object like { "Component 1": [], "Component 2": [] }
-    instructions, // Assuming an object like { "Step 1": [], "Step 2": [] }
+    ingredients, // Now an array of objects: [{ title: string, items: [] }]
+    instructions, // Now an array of objects: [{ title: string, steps: [] }]
     source,
     prep_time,
     cook_time,
@@ -212,24 +212,29 @@ const RecipeDetail = ({ selectedRecipe, onClose }) => {
   };
 
   // Helper function to render lists grouped by components/steps
-  const renderGroupedList = (items, listType = 'ul', groupKeyPrefix) => {
-    if (!items || typeof items !== 'object' || Object.keys(items).length === 0) {
+  const renderGroupedList = (sections, listType = 'ul', groupKeyPrefix) => {
+    if (!Array.isArray(sections) || sections.length === 0) {
       return <p>Information not available.</p>;
     }
     const isIngredientList = groupKeyPrefix === 'ingredient';
 
-    return Object.entries(items).map(([componentName, itemList]) => {
-      const listItems = Array.isArray(itemList)
-        ? itemList.map((item, index) => (
-          <li key={`${groupKeyPrefix}-${componentName}-item-${index}`}>
-            {formatListItemContent(item, isIngredientList)}
-          </li>
-        ))
-        : null;
+    return sections.map((section, sectionIndex) => {
+      const componentName = section.title || '';
+      const itemList = section.steps || section.items; // Handles both instructions and ingredients
+
+      if (!Array.isArray(itemList)) {
+        return null; // Or some fallback for malformed section
+      }
+
+      const listItems = itemList.map((item, index) => (
+        <li key={`${groupKeyPrefix}-${sectionIndex}-item-${index}`}>
+          {formatListItemContent(item, isIngredientList)}
+        </li>
+      ));
 
       return (
-        <div key={`${groupKeyPrefix}-${componentName}`} className="mb-4">
-          <h4 className="text-md font-semibold mb-1">{componentName}</h4>
+        <div key={`${groupKeyPrefix}-${sectionIndex}`} className="mb-4">
+          {componentName && <h4 className="text-md font-semibold mb-1">{componentName}</h4>}
           {listType === 'ul' ? (
             <ul className="list-disc list-inside space-y-1">{listItems}</ul>
           ) : (

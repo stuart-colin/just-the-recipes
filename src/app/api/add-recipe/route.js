@@ -17,24 +17,15 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Recipe title is required.' }, { status: 400 });
     }
 
-    // The _originalFilenameSlug is added by the client-side RecipeUploadForm
-    // We can use it to create a 'slug' field in our recipe data.
-    // Firestore will generate its own unique document ID.
-    let recipeSlug;
-    if (recipeData._originalFilenameSlug) {
-      recipeSlug = recipeData._originalFilenameSlug;
-      delete recipeData._originalFilenameSlug; // Remove temporary property
-    } else {
-      recipeSlug = slugify(recipeData.title);
-    }
-
-    if (!recipeSlug) {
-      // Fallback if slugification fails, though unlikely if title exists
-      recipeSlug = `recipe-${Date.now()}`;
-    }
+    // The client-side forms (manual and upload) should already be generating a slug.
+    // This server-side generation acts as a fallback and ensures it exists.
+    // A more robust implementation could also check for slug uniqueness here.
+    const recipeSlug = recipeData.slug || slugify(recipeData.title) || `recipe-${Date.now()}`;
 
     // Add the generated slug as a field to the recipe data
     const recipeToSave = { ...recipeData, slug: recipeSlug };
+    // Clean up temporary property if it exists from older client versions
+    delete recipeToSave._originalFilenameSlug;
 
     // Save to Firestore
     const savedRecipe = await addRecipeToFirestore(recipeToSave);
